@@ -5,10 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "node --watch ./api/src/index.ts",
+    "dev:ui": "pnpm --filter ui dev",
     "start": "node ./dist/index.js",
-    "build": "tsc",
+    "build": "pnpm run build:api && pnpm run build:ui",
+    "build:api": "tsc",
+    "build:ui": "pnpm --filter ui build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "lint:ui": "pnpm --filter ui lint",
     "fmt": "prettier --write .",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
