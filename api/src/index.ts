@@ -1,3 +1,5 @@
+import assert from 'node:assert/strict';
+
 import Fastify from 'fastify'
 import { ApiRouter } from './routes/router.ts'
 
