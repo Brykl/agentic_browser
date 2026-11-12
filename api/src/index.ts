@@ -8,7 +8,7 @@ const fastify = Fastify({
 fastify.register(ApiRouter, { prefix: '/api' })
 
 
-fastify.listen({ port: 3000 }, function (err, address) {
+fastify.listen({ port: 3777 }, function (err, address) {
   if (err) {
     fastify.log.error(err)
     process.exit(1)
