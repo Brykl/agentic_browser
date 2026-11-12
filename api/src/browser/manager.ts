@@ -20,6 +20,12 @@ export async function GetPages(browser: Browser): Promise<Page[]> {
     return pages
 }
 
+export async function GetPageById(browser: Browser, pageId: number): Promise<Page | undefined> {
+    const pages = await GetPages(browser);
+    return pages[pageId];
+}
+
+
 
 
 // try {
