@@ -1,9 +1,11 @@
 import Fastify from 'fastify'
+import { ApiRouter } from './routes/router.ts'
 
 const fastify = Fastify({
   logger: true
 })
 
+fastify.register(ApiRouter, { prefix: '/api' })
 
 
 fastify.listen({ port: 3000 }, function (err, address) {

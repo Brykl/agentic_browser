@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 
-export function router(fastify: FastifyInstance) {
+export async function RouterV1(fastify: FastifyInstance) {
     fastify.get('/', function (request, reply) {
         reply.send({ hello: 'world' })
     })
