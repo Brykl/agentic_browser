@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { AppBar } from "./components/AppBar"
 import Box from '@mui/material/Box';
+import { LiveViewBrowser } from "./components/liveView";
 
 type Message = {
-  text: string;
+  type: string;
+  img: string;
 };
-
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -37,10 +38,10 @@ function App() {
           overflow: 'auto',
           bgcolor: '#13131b',
         }}>
-        <p>Всё начинается с чистой страницы.</p>
-        {messages.map((message, index) => (
-          <p key={index}>{message.text}</p>
-        ))}
+        <LiveViewBrowser img={messages.at(-1)?.img} />
+        {/* {messages.map((message, index) => (
+          <p key={index}>{message.img}</p>
+        ))} */}
       </Box>
     </Box>
   )

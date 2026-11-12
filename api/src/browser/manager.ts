@@ -25,6 +25,34 @@ export async function GetPageById(browser: Browser, pageId: number): Promise<Pag
     return pages[pageId];
 }
 
+export async function ScrenCast(page: Page) {
+    const cdp = await page.createCDPSession()
+
+    let lastFrame: string | null = null;
+
+    cdp.on('Page.screencastFrame', async ({ data, sessionId }) => {
+        lastFrame = data;
+
+        void cdp.send('Page.screencastFrameAck', {
+            sessionId,
+        }).catch(console.error);
+    })
+
+    await cdp.send('Page.startScreencast', {
+        format: 'jpeg',
+        quality: 70,
+        everyNthFrame: 1,
+    });
+
+    return {
+        getFrame: () => lastFrame,
+
+        stop: async () => {
+            await cdp.send('Page.stopScreencast');
+            await cdp.detach();
+        },
+    };
+}
 
 
 
