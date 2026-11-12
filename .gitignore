@@ -1,0 +1,22 @@
+node_modules/
+dist/
+
+# Local environment variables
+.env
+.env.*
+!.env.example
+
+# Logs and caches
+*.log
+.pnpm-store/
+.cache/
+*.tsbuildinfo
+.eslintcache
+
+# Test output
+coverage/
+puppeteer-check.png
+
+# OS files
+.DS_Store
+Thumbs.db

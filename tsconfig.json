@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "verbatimModuleSyntax": true,
+    "rootDir": "api/src",
+    "outDir": "dist",
+    "strict": true,
+    "types": ["node"],
+    "sourceMap": true,
+    "erasableSyntaxOnly": true,
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["api/src/**/*.ts"]
+}
