@@ -2,6 +2,7 @@
 import puppeteer from 'puppeteer';
 import type { Browser, LaunchOptions, Page } from 'puppeteer';
 import { randomUUID } from "node:crypto";
+import { error } from 'node:console';
 
 interface BrowserSession {
     browser: Browser;
@@ -13,17 +14,10 @@ interface BrowserSession {
 export class BrowserManager {
     private browsers: Map<string, BrowserSession> = new Map()
 
-    getBrowsers(): Map<string, BrowserSession> {
-        return new Map(this.browsers);
-    }
 
-    getBrowser(browserId: string): BrowserSession | undefined {
-        return this.browsers.get(browserId);
-    }
 
     async createBrowser(ownerId: string, params: LaunchOptions): Promise<string> {
         const browserId = randomUUID();
-
         const browser = await puppeteer.launch(params)
 
         this.browsers.set(browserId, {
@@ -33,33 +27,91 @@ export class BrowserManager {
             lastUsed: Date.now()
         })
 
+        browser.on('disconnected', () => {
+            this.browsers.delete(browserId)
+        })
+
         return browserId
     }
+
+    // TODO: add error handler
+    async createPage(browserId: string): Promise<string> {
+        const session = this.browsers.get(browserId);
+        if (!session) throw new Error(`Browser ${browserId} not found`);
+
+        const pageId = randomUUID()
+        const page = await session.browser.newPage()
+
+        session.pages.set(pageId, page)
+        page.on('close', () => {
+            session.pages.delete(pageId)
+        })
+        return pageId
+    }
+
+    getBrowsers(): Map<string, BrowserSession> {
+        return new Map(this.browsers);
+    }
+
+    // TODO: add error handler
+    getBrowser(browserId: string): BrowserSession | undefined {
+        return this.browsers.get(browserId);
+    }
+
+    // TODO: add error handler
+    getPage(browserId: string, pageId: string): Page | undefined {
+        const session = this.browsers.get(browserId);
+        if (!session) return undefined;
+        session.lastUsed = Date.now();
+        return session.pages.get(pageId);
+    }
+
+    // TODO: add error handler
+    listPages(browserId: string): string[] {
+        return [...(this.browsers.get(browserId)?.pages.keys() ?? [])];
+    }
+
+    // TODO: add error handler
+    async closePage(browserId: string, pageId: string): Promise<void> {
+        await this.getPage(browserId, pageId)?.close();
+    }
+
+    // TODO: add error handler
+    async closeBrowser(browserId: string): Promise<void> {
+        await this.browsers.get(browserId)?.browser.close();
+    }
+
+    // TODO: add error handler
+    async closeAll(): Promise<void> {
+        await Promise.all([...this.browsers.values()].map(s => s.browser.close()));
+    }
+
+
 }
 
 
-export async function RunVirtualBrowser(params: LaunchOptions): Promise<Browser> {
-    const browser = await puppeteer.launch(params);
+// export async function RunVirtualBrowser(params: LaunchOptions): Promise<Browser> {
+//     const browser = await puppeteer.launch(params);
 
-    return browser
-}
+//     return browser
+// }
 
 
-export async function CreateNewPage(browser: Browser): Promise<Page> {
-    const page = await browser.newPage();
-    return page
-}
+// export async function CreateNewPage(browser: Browser): Promise<Page> {
+//     const page = await browser.newPage();
+//     return page
+// }
 
-export async function GetPages(browser: Browser): Promise<Page[]> {
-    const pages = await browser.pages();
+// export async function GetPages(browser: Browser): Promise<Page[]> {
+//     const pages = await browser.pages();
 
-    return pages
-}
+//     return pages
+// }
 
-export async function GetPageById(browser: Browser, pageId: number): Promise<Page | undefined> {
-    const pages = await GetPages(browser);
-    return pages[pageId];
-}
+// export async function GetPageById(browser: Browser, pageId: string): Promise<Page | undefined> {
+//     const pages = await GetPages(browser);
+//     return pages[pageId];
+// }
 
 export async function ScrenCast(page: Page) {
     const cdp = await page.createCDPSession()

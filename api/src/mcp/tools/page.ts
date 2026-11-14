@@ -1,23 +1,26 @@
 import * as z from 'zod/v4';
 import { McpServer } from '@modelcontextprotocol/server';
 import type { Browser } from 'puppeteer';
-import { GetPageById } from '../../browser/manager.ts';
+import { BrowserManager } from '../../browser/manager.ts';
 
 
-export function ScrollPageTool(server: McpServer, browser: Browser) {
+export function ScrollPageTool(server: McpServer, browserManager: BrowserManager) {
     server.registerTool(
         'scroll-page',
         {
             description: 'Scroll a page up or down',
             inputSchema: z.object({
-                pageId: z.int().nonnegative().describe('Index of the page in browser.pages(), starting at 0'),
+                browserId: z.uuid().describe('Browser ID returned by create-browser'),
+                pageId: z.uuid().describe('Page ID returned by open-page'),
                 direction: z.enum(['up', 'down']).describe('Scroll direction: up or down'),
                 px: z.int().positive().describe('Distance to scroll in pixels; must be a positive integer')
             })
         },
-        async ({ pageId, direction, px }) => {
+        async ({ browserId, pageId, direction, px }) => {
             try {
-                const page = await GetPageById(browser, pageId);
+                const browser = browserManager.getBrowser(browserId)
+                if (!browser?.browser) throw new Error(`Browser with id ${browserId} not found`)
+                const page = browserManager.getPage(browserId, pageId);
                 if (!page) {
                     return {
                         isError: true,

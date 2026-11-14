@@ -1,29 +1,30 @@
 import * as z from 'zod/v4';
 import { McpServer } from '@modelcontextprotocol/server';
+import type { BrowserManager } from '../../browser/manager.ts';
 
 
-export function CreateBrowserTool(server: McpServer) {
+
+export function CreateBrowserTool(server: McpServer, browserManager: BrowserManager) {
     server.registerTool(
         'create-browser',
         {
             description: 'Create instance of browser',
-            inputSchema: z.object({})
+            inputSchema: z.object({
+                ownerId: z.string()
+            })
         },
-        async ({ }) => ({
-            content: [{ type: 'text', text: `Hello, ${name}!` }]
-        })
-    )
-}
-
-export function GetPagesTool(server: McpServer) {
-    server.registerTool(
-        'create-browser',
-        {
-            description: 'Create instance of browser',
-            inputSchema: z.object({})
-        },
-        async ({ }) => ({
-            content: [{ type: 'text', text: `Hello, ${name}!` }]
-        })
+        async ({ ownerId }) => {
+            try {
+                const browserId = await browserManager.createBrowser(ownerId, { headless: true })
+                return {
+                    content: [{ type: 'text', text: `Browser created. browserId: ${browserId}` }],
+                };
+            } catch (error) {
+                return {
+                    isError: true,
+                    content: [{ type: 'text', text: `Failed to create browser: ${error instanceof Error ? error.message : String(error)}` }],
+                };
+            }
+        }
     )
 }
