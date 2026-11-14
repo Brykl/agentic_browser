@@ -1,6 +1,42 @@
 
 import puppeteer from 'puppeteer';
 import type { Browser, LaunchOptions, Page } from 'puppeteer';
+import { randomUUID } from "node:crypto";
+
+interface BrowserSession {
+    browser: Browser;
+    pages: Map<string, Page>;
+    ownerId: string;
+    lastUsed: number;
+}
+
+export class BrowserManager {
+    private browsers: Map<string, BrowserSession> = new Map()
+
+    getBrowsers(): Map<string, BrowserSession> {
+        return new Map(this.browsers);
+    }
+
+    getBrowser(browserId: string): BrowserSession | undefined {
+        return this.browsers.get(browserId);
+    }
+
+    async createBrowser(ownerId: string, params: LaunchOptions): Promise<string> {
+        const browserId = randomUUID();
+
+        const browser = await puppeteer.launch(params)
+
+        this.browsers.set(browserId, {
+            browser,
+            pages: new Map<string, Page>(),
+            ownerId,
+            lastUsed: Date.now()
+        })
+
+        return browserId
+    }
+}
+
 
 export async function RunVirtualBrowser(params: LaunchOptions): Promise<Browser> {
     const browser = await puppeteer.launch(params);
