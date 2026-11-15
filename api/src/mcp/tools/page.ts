@@ -1,7 +1,7 @@
 import * as z from 'zod/v4';
 import { McpServer } from '@modelcontextprotocol/server';
 import type { Browser } from 'puppeteer';
-import { BrowserManager } from '../../browser/manager.ts';
+import { BrowserManager } from '../../services/browser.ts'
 
 
 export function ScrollPageTool(server: McpServer, browserManager: BrowserManager) {

@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { McpRouteV1 } from './mcp.ts'
 import type { Browser } from 'puppeteer'
-import type { BrowserManager } from '../../browser/manager.ts'
+import type { BrowserManager } from '../../services/browser.ts'
+import { BrowsersRoutesV1 } from './browser.ts'
 
 export async function RouterV1(fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
     fastify.get('/', function (request, reply) {
@@ -9,4 +10,5 @@ export async function RouterV1(fastify: FastifyInstance, { browserManager }: { b
     })
 
     fastify.register(McpRouteV1, { prefix: '/mcp', browserManager })
+    fastify.register(BrowsersRoutesV1, { prefix: '/browsers', browserManager })
 }

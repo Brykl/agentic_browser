@@ -1,6 +1,6 @@
 import * as z from 'zod/v4';
 import { McpServer } from '@modelcontextprotocol/server';
-import type { BrowserManager } from '../../browser/manager.ts';
+import type { BrowserManager } from '../../services/browser.ts';
 
 
 

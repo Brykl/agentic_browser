@@ -3,7 +3,7 @@ import { createMcpHandler } from '@modelcontextprotocol/server'
 import { toNodeHandler } from '@modelcontextprotocol/node'
 import { NewMcpServer } from '../../mcp/server.ts'
 import type { Browser } from 'puppeteer'
-import type { BrowserManager } from '../../browser/manager.ts'
+import type { BrowserManager } from '../../services/browser.ts'
 
 
 export async function McpRouteV1(fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { RouterV1 } from './v1/v1.ts'
 // import { WsRouteV1 } from './v1/ws.ts'
-import { BrowserManager } from '../browser/manager.ts'
+import { BrowserManager } from '../services/browser.ts'
 
 export async function ApiRouter(fastify: FastifyInstance) {
     const browserManager = new BrowserManager();
