@@ -1,5 +1,8 @@
 node_modules/
 dist/
+postman/
+.postman/
+.agents/skills/agentic-browser-api-testing/
 
 # Local environment variables
 .env
