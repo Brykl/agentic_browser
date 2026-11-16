@@ -76,8 +76,24 @@ export class BrowserManager {
     }
 
     // TODO: add error handler
+    async updatePageUrl(browserId: string, pageId: string, url: string): Promise<Page | undefined> {
+        const page = this.getPage(browserId, pageId);
+        if (!page) return undefined;
+        await page.goto(url);
+        return page;
+    }
+
+    // TODO: add error handler
+    async deletePage(browserId: string, pageId: string): Promise<boolean> {
+        const page = this.getPage(browserId, pageId);
+        if (!page) return false;
+        await page.close();
+        return true;
+    }
+
+    // TODO: add error handler
     async closePage(browserId: string, pageId: string): Promise<void> {
-        await this.getPage(browserId, pageId)?.close();
+        await this.deletePage(browserId, pageId);
     }
 
     // TODO: add error handler

@@ -65,9 +65,76 @@ export async function PagesRoutesV1(fastify: FastifyInstance, { browserManager }
                 title: await page.title(),
             })
         })
+
+    fastify.patch<{
+        Params: { id: string }
+        Body: UpdatePageBody
+    }>('/:id', {
+        schema: {
+            body: {
+                type: 'object',
+                required: ['browserId', 'pageUrl'],
+                properties: {
+                    browserId: { type: 'string', minLength: 1 },
+                    pageUrl: { type: 'string', minLength: 1 },
+                },
+            },
+        },
+    }, async (request, reply) => {
+        const { id: pageId } = request.params
+        const { browserId, pageUrl } = request.body
+
+        const page = await browserManager.updatePageUrl(browserId, pageId, pageUrl)
+
+        if (!page) {
+            return reply.code(404).send({ error: 'Page not found' })
+        }
+
+        return reply.send({
+            browserId,
+            pageId,
+            url: page.url(),
+            title: await page.title(),
+        })
+    })
+
+    fastify.delete<{
+        Params: { id: string }
+        Querystring: { browserId: string }
+    }>('/:id', {
+        schema: {
+            querystring: {
+                type: 'object',
+                required: ['browserId'],
+                properties: {
+                    browserId: { type: 'string', minLength: 1 },
+                },
+            },
+        },
+    }, async (request, reply) => {
+        const { id: pageId } = request.params
+        const { browserId } = request.query
+
+        const deleted = await browserManager.deletePage(browserId, pageId)
+
+        if (!deleted) {
+            return reply.code(404).send({ error: 'Page not found' })
+        }
+
+        return reply.send({
+            browserId,
+            pageId,
+            deleted: true,
+        })
+    })
 }
 
 interface CreatePageBody {
     browserId: string,
     pageUrl?: string,
+}
+
+interface UpdatePageBody {
+    browserId: string,
+    pageUrl: string,
 }
