@@ -5,6 +5,7 @@ import { NewMcpServer } from '../../mcp/server.ts'
 import type { Browser } from 'puppeteer'
 import type { BrowserManager } from '../../services/browser.ts'
 import { id } from 'zod/locales'
+import { PagesRoutesV1 } from './page.ts'
 
 
 
@@ -25,10 +26,10 @@ export async function BrowsersRoutesV1(fastify: FastifyInstance, { browserManage
         reply.send({ browsers })
     })
 
-    fastify.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
-        const { id } = request.params
+    // fastify.get<{ Params: { id: string } }>('/:id', async (request, reply) => {
+    //     const { id } = request.params
 
-    })
+    // })
 
     fastify.post<{ Body: CreateBrowserBody }>('/',
         {
@@ -50,6 +51,8 @@ export async function BrowsersRoutesV1(fastify: FastifyInstance, { browserManage
 
             return reply.code(201).send({ browserId })
         })
+
+    fastify.register(PagesRoutesV1, { prefix: '/pages', browserManager })
 }
 
 

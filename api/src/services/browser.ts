@@ -35,7 +35,7 @@ export class BrowserManager {
     }
 
     // TODO: add error handler
-    async createPage(browserId: string): Promise<string> {
+    async createPage(browserId: string, params?: CreatePageParams): Promise<string> {
         const session = this.browsers.get(browserId);
         if (!session) throw new Error(`Browser ${browserId} not found`);
 
@@ -46,6 +46,10 @@ export class BrowserManager {
         page.on('close', () => {
             session.pages.delete(pageId)
         })
+
+        if (params?.url) {
+            await page.goto(params.url);
+        }
         return pageId
     }
 
@@ -89,29 +93,9 @@ export class BrowserManager {
 
 }
 
-
-// export async function RunVirtualBrowser(params: LaunchOptions): Promise<Browser> {
-//     const browser = await puppeteer.launch(params);
-
-//     return browser
-// }
-
-
-// export async function CreateNewPage(browser: Browser): Promise<Page> {
-//     const page = await browser.newPage();
-//     return page
-// }
-
-// export async function GetPages(browser: Browser): Promise<Page[]> {
-//     const pages = await browser.pages();
-
-//     return pages
-// }
-
-// export async function GetPageById(browser: Browser, pageId: string): Promise<Page | undefined> {
-//     const pages = await GetPages(browser);
-//     return pages[pageId];
-// }
+interface CreatePageParams {
+    url: string
+}
 
 export async function ScrenCast(page: Page) {
     const cdp = await page.createCDPSession()
