@@ -140,6 +140,28 @@ export class BrowserManager {
         }
 
     }
+
+    async availableXYscroll(browserId: string, pageId: string) {
+        const page = this.getPage(browserId, pageId);
+        if (!page) return undefined;
+
+        return await page.evaluate(() => ({
+            x: window.scrollX,
+            y: window.scrollY,
+            maxX: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
+            maxY: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
+        }));
+    }
+
+    async scrollPage(browserId: string, pageId: string, left: number, top: number) {
+        const page = this.getPage(browserId, pageId);
+        if (!page) return undefined;
+
+        return await page.evaluate((x, y) => {
+            window.scrollBy(x, y);
+            return { x: window.scrollX, y: window.scrollY };
+        }, left, top);
+    }
     // TODO: add error handler
     async deletePage(browserId: string, pageId: string): Promise<boolean> {
         const page = this.getPage(browserId, pageId);

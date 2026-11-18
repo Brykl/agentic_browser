@@ -7,6 +7,8 @@ import { UpdatePage } from './id/patch.ts'
 import { DeletePage } from './id/delete.ts'
 import { GetPageSnapshot } from './id/snapshot/get.ts'
 import { ClickPage } from './id/click/post.ts'
+import { GetPageScroll } from './id/scroll/get.ts'
+import { ScrollPage } from './id/scroll/post.ts'
 
 export async function PagesRoutesV1(fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
     GetListOfPages('/', fastify, { browserManager })
@@ -15,5 +17,7 @@ export async function PagesRoutesV1(fastify: FastifyInstance, { browserManager }
     UpdatePage('/:id', fastify, { browserManager })
     GetPageSnapshot('/:id/snapshot', fastify, { browserManager })
     ClickPage('/:id/click', fastify, { browserManager })
+    GetPageScroll('/:id/scroll', fastify, { browserManager })
+    ScrollPage('/:id/scroll', fastify, { browserManager })
     DeletePage('/:id', fastify, { browserManager })
 }
