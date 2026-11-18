@@ -19,8 +19,8 @@ export class BrowserManager {
 
 
 
-    async createBrowser(ownerId: string, params: LaunchOptions): Promise<string> {
-        const browserId = randomUUID();
+    async createBrowser(ownerId: string, params: LaunchOptions, customBrowserId?: string): Promise<string> {
+        const browserId = customBrowserId ?? randomUUID();
         const browser = await puppeteer.launch(params)
 
         this.browsers.set(browserId, {
@@ -40,11 +40,11 @@ export class BrowserManager {
     }
 
     // TODO: add error handler
-    async createPage(browserId: string, params?: CreatePageParams): Promise<string> {
+    async createPage(browserId: string, params?: CreatePageParams, customPageId?: string): Promise<string> {
         const session = this.browsers.get(browserId);
         if (!session) throw new Error(`Browser ${browserId} not found`);
 
-        const pageId = randomUUID()
+        const pageId = customPageId ?? randomUUID()
         const page = await session.browser.newPage()
 
         session.pages.set(pageId, page)
