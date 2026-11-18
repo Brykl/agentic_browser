@@ -36,15 +36,28 @@ export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { 
         }
 
         const cast = await ScrenCast(page);
-        setInterval(() => {
+        if (socket.readyState !== socket.OPEN) {
+            await cast.stop();
+            return;
+        }
+
+        const sendLatestFrame = () => {
+            if (socket.readyState !== socket.OPEN) return;
             const frame = cast.getFrame();
+            if (!frame) return;
             socket.send(JSON.stringify({
                 type: "base64",
                 img: frame,
             }))
+        };
 
-            // index = (index + 1) % encodedImages.length
-        }, 333);
+        sendLatestFrame();
+        const interval = setInterval(sendLatestFrame, 100);
+
+        socket.on('close', () => {
+            clearInterval(interval);
+            void cast.stop().catch(() => { });
+        });
         // socket.on('message', (data) => {
         //     socket.send(`Получено: ${data.toString()}`)
         // })

@@ -2,7 +2,7 @@
 import puppeteer from 'puppeteer';
 import type { Browser, LaunchOptions, Page } from 'puppeteer';
 import type { Protocol } from 'puppeteer-core';
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 
 interface BrowserSession {
     browser: Browser;
@@ -46,6 +46,7 @@ export class BrowserManager {
 
         const pageId = customPageId ?? randomUUID()
         const page = await session.browser.newPage()
+        await page.setViewport({ width: 1440, height: 900 })
 
         session.pages.set(pageId, page)
         page.on('framenavigated', (frame) => {
@@ -59,7 +60,11 @@ export class BrowserManager {
         })
 
         if (params?.url) {
-            await page.goto(params.url);
+            try {
+                await page.goto(params.url);
+            } catch (err) {
+                console.error(`Failed to navigate to ${params.url}:`, err);
+            }
         }
         return pageId
     }
@@ -95,6 +100,7 @@ export class BrowserManager {
     async updatePageUrl(browserId: string, pageId: string, url: string): Promise<Page | undefined> {
         const page = this.getPage(browserId, pageId);
         if (!page) return undefined;
+        await page.bringToFront().catch(() => { });
         await page.goto(url);
         return page;
     }
@@ -124,6 +130,7 @@ export class BrowserManager {
 
         const cdp = await page.createCDPSession();
         try {
+            await page.bringToFront().catch(() => { });
             await cdp.send('DOM.scrollIntoViewIfNeeded', { backendNodeId })
             const { quads } = await cdp.send('DOM.getContentQuads', { backendNodeId });
             const q = quads[0];
@@ -139,6 +146,30 @@ export class BrowserManager {
             await cdp.detach().catch(() => { });
         }
 
+    }
+
+    async fillForm(browserId: string, pageId: string, ref: number, value: string) {
+        const page = this.getPage(browserId, pageId);
+        if (!page) return undefined;
+
+        const backendNodeId = this.pageRefMaps.get(page)?.get(ref)
+        if (!backendNodeId) {
+            throw new Error(`Ref [${ref}] not found. Take a new snapshot.`);
+        }
+
+        await this.clickButton(browserId, pageId, ref)
+        await page.bringToFront().catch(() => { });
+
+        await page.keyboard.down('Control');
+        await page.keyboard.press('KeyA');
+        await page.keyboard.up('Control');
+        await page.keyboard.press('Backspace');
+
+        if (value.length > 0) {
+            const delay = randomInt(100, 500)
+            await page.keyboard.type(value, { delay });
+        }
+        return { filled: true, ref, value };
     }
 
     async availableXYscroll(browserId: string, pageId: string) {
@@ -167,6 +198,12 @@ export class BrowserManager {
         const page = this.getPage(browserId, pageId);
         if (!page) return false;
         await page.close();
+        return true;
+    }
+    async reloadPage(browserId: string, pageId: string): Promise<boolean> {
+        const page = this.getPage(browserId, pageId);
+        if (!page) return false;
+        await page.reload();
         return true;
     }
 
@@ -321,30 +358,66 @@ export function optimizeAXTreeForLLM(rawNodes: Protocol.Accessibility.AXNode[]):
 }
 
 export async function ScrenCast(page: Page) {
+    await page.bringToFront().catch(() => { });
     const cdp = await page.createCDPSession()
 
     let lastFrame: string | null = null;
+    let lastFrameAt = 0;
+    let capturing = false;
+    let stopped = false;
+
+    const captureFallback = async () => {
+        if (stopped || capturing || page.isClosed()) return;
+        capturing = true;
+        try {
+            await page.bringToFront().catch(() => { });
+            const { data } = await cdp.send('Page.captureScreenshot', {
+                format: 'jpeg',
+                quality: 70,
+            });
+            if (data) {
+                lastFrame = data;
+                lastFrameAt = Date.now();
+            }
+        } catch {
+            // Ignore errors while page is navigating or closing
+        } finally {
+            capturing = false;
+        }
+    };
 
     cdp.on('Page.screencastFrame', async ({ data, sessionId }) => {
         lastFrame = data;
+        lastFrameAt = Date.now();
 
         void cdp.send('Page.screencastFrameAck', {
             sessionId,
-        }).catch(console.error);
+        }).catch(() => { });
     })
 
     await cdp.send('Page.startScreencast', {
         format: 'jpeg',
         quality: 70,
         everyNthFrame: 1,
-    });
+    }).catch(() => { });
+
+    if (!lastFrame) {
+        await captureFallback();
+    }
+
+    const fallbackInterval = setInterval(() => {
+        if (Date.now() - lastFrameAt > 500) {
+            void captureFallback();
+        }
+    }, 500);
 
     return {
         getFrame: () => lastFrame,
 
         stop: async () => {
-            await cdp.send('Page.stopScreencast');
-            await cdp.detach();
+            stopped = true;
+            clearInterval(fallbackInterval);
+            await cdp.detach().catch(() => { });
         },
     };
 }

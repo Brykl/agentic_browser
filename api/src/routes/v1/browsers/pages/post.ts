@@ -25,6 +25,6 @@ export function CreatePage(path: string, fastify: FastifyInstance, { browserMana
         if (!pageId) {
             return reply.code(500).send('Failed create page')
         }
-        return reply.code(201).send(`Successfully created page with id:"${pageId}"`)
+        return reply.code(201).send({ pageId })
     })
 }

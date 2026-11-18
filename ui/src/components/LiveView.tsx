@@ -22,7 +22,7 @@ export function LiveViewBrowser({ img }: Props) {
             ctx.drawImage(image, 0, 0);
         };
 
-        image.src = `data:image/png;base64,${img}`;
+        image.src = `data:image/jpeg;base64,${img}`;
 
         return () => {
             image.onload = null;
@@ -32,7 +32,12 @@ export function LiveViewBrowser({ img }: Props) {
     return (
         <canvas
             ref={canvasRef}
-            style={{ display: "block", maxWidth: "100%", height: "auto" }}
+            style={{
+                display: "block",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+            }}
         />
     );
 }

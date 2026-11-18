@@ -12,7 +12,7 @@ export async function ApiRouter(fastify: FastifyInstance) {
     fastify.addHook('onListen', async () => {
         try {
             await browserManager.createBrowser("system", { headless: true }, DEFAULT_BROWSER_ID);
-            await browserManager.createPage(DEFAULT_BROWSER_ID, { url: "https://example.com" }, DEFAULT_PAGE_ID);
+            await browserManager.createPage(DEFAULT_BROWSER_ID, { url: "https://til-uiren.qazaq-learn.workers.dev/" }, DEFAULT_PAGE_ID);
             fastify.log.info({ browserId: DEFAULT_BROWSER_ID, pageId: DEFAULT_PAGE_ID }, 'Default browser and page initialized');
         } catch (err) {
             fastify.log.error(err, 'Failed to initialize default browser and page');
