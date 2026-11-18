@@ -17,13 +17,22 @@ func newUpdateCmd(opts *config.Options) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "update <page-id>",
+		Use:     "update [page-id]",
 		Aliases: []string{"navigate", "goto"},
 		Short:   "Navigate a page to a new URL",
-		Args:    cobra.ExactArgs(1),
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			res, err := opts.NewClient().UpdatePage(cmd.Context(), args[0], client.UpdatePageRequest{
-				BrowserID: browserID,
+			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
+			if err != nil {
+				return err
+			}
+			resolvedPageID, err := opts.ResolvePageID(args)
+			if err != nil {
+				return err
+			}
+
+			res, err := opts.NewClient().UpdatePage(cmd.Context(), resolvedPageID, client.UpdatePageRequest{
+				BrowserID: resolvedBrowserID,
 				PageURL:   pageURL,
 			})
 			if err != nil {
@@ -44,9 +53,8 @@ func newUpdateCmd(opts *config.Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (required)")
+	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
 	cmd.Flags().StringVar(&pageURL, "url", "", "Target URL (required)")
-	_ = cmd.MarkFlagRequired("browser-id")
 	_ = cmd.MarkFlagRequired("url")
 
 	return cmd

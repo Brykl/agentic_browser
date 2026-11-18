@@ -17,16 +17,25 @@ func newClickCmd(opts *config.Options) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "click <page-id>",
+		Use:   "click [page-id]",
 		Short: "Click an element on a page by its snapshot ref",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if ref < 1 {
 				return fmt.Errorf("--ref must be >= 1")
 			}
 
-			res, err := opts.NewClient().ClickPage(cmd.Context(), args[0], client.ClickPageRequest{
-				BrowserID: browserID,
+			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
+			if err != nil {
+				return err
+			}
+			resolvedPageID, err := opts.ResolvePageID(args)
+			if err != nil {
+				return err
+			}
+
+			res, err := opts.NewClient().ClickPage(cmd.Context(), resolvedPageID, client.ClickPageRequest{
+				BrowserID: resolvedBrowserID,
 				Ref:       ref,
 			})
 			if err != nil {
@@ -43,9 +52,8 @@ func newClickCmd(opts *config.Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (required)")
+	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
 	cmd.Flags().IntVar(&ref, "ref", 0, "Element ref number from snapshot (required, >= 1)")
-	_ = cmd.MarkFlagRequired("browser-id")
 	_ = cmd.MarkFlagRequired("ref")
 
 	return cmd

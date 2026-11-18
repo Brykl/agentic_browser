@@ -21,12 +21,21 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 		Short: "Open a new page in a browser session",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
+			if err != nil {
+				return err
+			}
+
 			res, err := opts.NewClient().CreatePage(cmd.Context(), client.CreatePageRequest{
-				BrowserID: browserID,
+				BrowserID: resolvedBrowserID,
 				PageURL:   pageURL,
 			})
 			if err != nil {
 				return err
+			}
+
+			if res.PageID != "" {
+				_ = opts.SetActivePage(resolvedBrowserID, res.PageID)
 			}
 
 			out := cmd.OutOrStdout()
@@ -43,9 +52,8 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (required)")
+	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
 	cmd.Flags().StringVar(&pageURL, "url", "", "Initial URL to open (optional)")
-	_ = cmd.MarkFlagRequired("browser-id")
 
 	return cmd
 }

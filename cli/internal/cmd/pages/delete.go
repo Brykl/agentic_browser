@@ -13,15 +13,26 @@ func newDeleteCmd(opts *config.Options) *cobra.Command {
 	var browserID string
 
 	cmd := &cobra.Command{
-		Use:     "delete <page-id>",
+		Use:     "delete [page-id]",
 		Aliases: []string{"rm", "del"},
 		Short:   "Close and delete a page",
-		Args:    cobra.ExactArgs(1),
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			res, err := opts.NewClient().DeletePage(cmd.Context(), browserID, args[0])
+			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
 			if err != nil {
 				return err
 			}
+			resolvedPageID, err := opts.ResolvePageID(args)
+			if err != nil {
+				return err
+			}
+
+			res, err := opts.NewClient().DeletePage(cmd.Context(), resolvedBrowserID, resolvedPageID)
+			if err != nil {
+				return err
+			}
+
+			_ = opts.ClearActivePage(resolvedPageID)
 
 			out := cmd.OutOrStdout()
 			if opts.JSON {
@@ -33,8 +44,7 @@ func newDeleteCmd(opts *config.Options) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (required)")
-	_ = cmd.MarkFlagRequired("browser-id")
+	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
 
 	return cmd
 }

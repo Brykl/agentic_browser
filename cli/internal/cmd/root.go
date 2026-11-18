@@ -25,7 +25,7 @@ func NewRootCmd() *cobra.Command {
 	}
 
 	rootCmd := &cobra.Command{
-		Use:          "agentic-browser",
+		Use:          "agb",
 		Short:        "CLI client for the Agentic Browser API",
 		SilenceUsage: true,
 	}
@@ -38,6 +38,8 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(
 		browsers.NewCmd(opts),
 		pages.NewCmd(opts),
+		newUseCmd(opts),
+		newStatusCmd(opts),
 	)
 
 	return rootCmd

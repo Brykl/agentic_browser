@@ -29,6 +29,10 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 				return err
 			}
 
+			if res.BrowserID != "" {
+				_ = opts.SetActiveBrowser(res.BrowserID)
+			}
+
 			out := cmd.OutOrStdout()
 			if opts.JSON {
 				return output.PrintJSON(out, res)

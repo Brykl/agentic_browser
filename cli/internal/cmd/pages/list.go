@@ -18,7 +18,12 @@ func newListCmd(opts *config.Options) *cobra.Command {
 		Short:   "List pages in a browser session",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			res, err := opts.NewClient().ListPages(cmd.Context(), browserID)
+			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
+			if err != nil {
+				return err
+			}
+
+			res, err := opts.NewClient().ListPages(cmd.Context(), resolvedBrowserID)
 			if err != nil {
 				return err
 			}
@@ -33,17 +38,26 @@ func newListCmd(opts *config.Options) *cobra.Command {
 				return err
 			}
 
+			st, _ := opts.LoadState()
+			activePageID := ""
+			if st != nil {
+				activePageID = st.PageID
+			}
+
 			tw := output.NewTabWriter(out)
-			fmt.Fprintln(tw, "PAGE ID\tURL")
+			fmt.Fprintln(tw, "ACTIVE\tPAGE ID\tURL")
 			for _, p := range res.Pages {
-				fmt.Fprintf(tw, "%s\t%s\n", p.PageID, p.URL)
+				marker := " "
+				if p.PageID == activePageID {
+					marker = "*"
+				}
+				fmt.Fprintf(tw, "%s\t%s\t%s\n", marker, p.PageID, p.URL)
 			}
 			return tw.Flush()
 		},
 	}
 
-	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (required)")
-	_ = cmd.MarkFlagRequired("browser-id")
+	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
 
 	return cmd
 }
