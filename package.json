@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "node --watch ./api/src/index.ts",
+    "sandbox": "node --watch ./sandbox/play.ts",
     "dev:ui": "pnpm --filter ui dev",
     "start": "node ./dist/index.js",
     "build": "pnpm run build:api && pnpm run build:ui",
@@ -14,7 +15,8 @@
     "lint": "eslint .",
     "lint:ui": "pnpm --filter ui lint",
     "fmt": "prettier --write .",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "cli": "pnpm --filter cli dev --"
   },
   "keywords": [],
   "author": "",

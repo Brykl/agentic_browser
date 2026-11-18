@@ -23,3 +23,6 @@ puppeteer-check.png
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local sandbox
+sandbox/
