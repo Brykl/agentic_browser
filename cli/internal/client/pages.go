@@ -100,6 +100,27 @@ func (c *Client) ClickPage(ctx context.Context, pageID string, req ClickPageRequ
 	return &res, nil
 }
 
+// FillPage calls POST /api/v1/browsers/pages/:id/fill.
+func (c *Client) FillPage(ctx context.Context, pageID string, req FillPageRequest) (*FillPageResponse, error) {
+	var res FillPageResponse
+	path := "/browsers/pages/" + url.PathEscape(pageID) + "/fill"
+	if err := c.doJSON(ctx, http.MethodPost, path, nil, req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// ReloadPage calls POST /api/v1/browsers/pages/:id/reload.
+func (c *Client) ReloadPage(ctx context.Context, browserID, pageID string) (*ReloadPageResponse, error) {
+	var res ReloadPageResponse
+	path := "/browsers/pages/" + url.PathEscape(pageID) + "/reload"
+	req := ReloadPageRequest{BrowserID: browserID}
+	if err := c.doJSON(ctx, http.MethodPost, path, nil, req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 // GetPageScroll calls GET /api/v1/browsers/pages/:id/scroll?browserId=<id>.
 func (c *Client) GetPageScroll(ctx context.Context, browserID, pageID string) (*PageScrollInfoResponse, error) {
 	var res PageScrollInfoResponse

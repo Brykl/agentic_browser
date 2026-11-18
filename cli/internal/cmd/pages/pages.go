@@ -20,8 +20,10 @@ func NewCmd(opts *config.Options) *cobra.Command {
 		newGetCmd(opts),
 		newUpdateCmd(opts),
 		newDeleteCmd(opts),
+		newReloadCmd(opts),
 		newSnapshotCmd(opts),
 		newClickCmd(opts),
+		newFillCmd(opts),
 		newScrollCmd(opts),
 		newScrollInfoCmd(opts),
 	)

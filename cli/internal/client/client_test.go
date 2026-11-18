@@ -84,6 +84,30 @@ func TestClientBrowsersAndPages(t *testing.T) {
 				Y:         34.5,
 			})
 
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/browsers/pages/p1/fill":
+			var body client.FillPageRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode fill page: %v", err)
+			}
+			_ = json.NewEncoder(w).Encode(client.FillPageResponse{
+				BrowserID: body.BrowserID,
+				PageID:    "p1",
+				Filled:    true,
+				Ref:       body.Ref,
+				Value:     body.Value,
+			})
+
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/browsers/pages/p1/reload":
+			var body client.ReloadPageRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode reload page: %v", err)
+			}
+			_ = json.NewEncoder(w).Encode(client.ReloadPageResponse{
+				BrowserID: body.BrowserID,
+				PageID:    "p1",
+				Reloaded:  true,
+			})
+
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/browsers/pages/p1/scroll":
 			_ = json.NewEncoder(w).Encode(client.PageScrollInfoResponse{
 				BrowserID: "b1",
@@ -165,6 +189,16 @@ func TestClientBrowsersAndPages(t *testing.T) {
 	clickRes, err := c.ClickPage(ctx, "p1", client.ClickPageRequest{BrowserID: "b1", Ref: 1})
 	if err != nil || !clickRes.Clicked || clickRes.Ref != 1 {
 		t.Fatalf("ClickPage unexpected: res=%+v err=%v", clickRes, err)
+	}
+
+	fillRes, err := c.FillPage(ctx, "p1", client.FillPageRequest{BrowserID: "b1", Ref: 2, Value: "hello"})
+	if err != nil || !fillRes.Filled || fillRes.Ref != 2 || fillRes.Value != "hello" {
+		t.Fatalf("FillPage unexpected: res=%+v err=%v", fillRes, err)
+	}
+
+	reloadRes, err := c.ReloadPage(ctx, "b1", "p1")
+	if err != nil || !reloadRes.Reloaded || reloadRes.PageID != "p1" {
+		t.Fatalf("ReloadPage unexpected: res=%+v err=%v", reloadRes, err)
 	}
 
 	scrollInfoRes, err := c.GetPageScroll(ctx, "b1", "p1")
