@@ -1,0 +1,94 @@
+package client
+
+// BrowserInfo represents a browser session returned by GET /api/v1/browsers.
+type BrowserInfo struct {
+	ID       string   `json:"id"`
+	OwnerID  string   `json:"ownerId"`
+	LastUsed int64    `json:"lastUsed"`
+	PageIDs  []string `json:"pageIds"`
+}
+
+// ListBrowsersResponse is the response from GET /api/v1/browsers.
+type ListBrowsersResponse struct {
+	Browsers []BrowserInfo `json:"browsers"`
+}
+
+// CreateBrowserRequest is the payload for POST /api/v1/browsers.
+type CreateBrowserRequest struct {
+	OwnerID  string `json:"ownerId"`
+	Headless *bool  `json:"headless,omitempty"`
+}
+
+// CreateBrowserResponse is the response from POST /api/v1/browsers.
+type CreateBrowserResponse struct {
+	BrowserID string `json:"browserId"`
+}
+
+// PageSummary represents a page item in GET /api/v1/browsers/pages.
+type PageSummary struct {
+	PageID string `json:"pageId"`
+	URL    string `json:"url"`
+}
+
+// ListPagesResponse is the response from GET /api/v1/browsers/pages.
+type ListPagesResponse struct {
+	BrowserID string        `json:"browserId"`
+	Pages     []PageSummary `json:"pages"`
+}
+
+// CreatePageRequest is the payload for POST /api/v1/browsers/pages.
+type CreatePageRequest struct {
+	BrowserID string `json:"browserId"`
+	PageURL   string `json:"pageUrl,omitempty"`
+}
+
+// CreatePageResponse is the parsed response from POST /api/v1/browsers/pages.
+type CreatePageResponse struct {
+	BrowserID string `json:"browserId"`
+	PageID    string `json:"pageId,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
+// PageDetail is the response from GET and PATCH /api/v1/browsers/pages/:id.
+type PageDetail struct {
+	BrowserID string `json:"browserId"`
+	PageID    string `json:"pageId"`
+	URL       string `json:"url"`
+	Title     string `json:"title"`
+}
+
+// UpdatePageRequest is the payload for PATCH /api/v1/browsers/pages/:id.
+type UpdatePageRequest struct {
+	BrowserID string `json:"browserId"`
+	PageURL   string `json:"pageUrl"`
+}
+
+// DeletePageResponse is the response from DELETE /api/v1/browsers/pages/:id.
+type DeletePageResponse struct {
+	BrowserID string `json:"browserId"`
+	PageID    string `json:"pageId"`
+	Deleted   bool   `json:"deleted"`
+}
+
+// PageSnapshotResponse is the response from GET /api/v1/browsers/pages/:id/snapshot.
+type PageSnapshotResponse struct {
+	BrowserID string `json:"browserId"`
+	PageID    string `json:"pageId"`
+	Snapshot  string `json:"snapshot"`
+}
+
+// ClickPageRequest is the payload for POST /api/v1/browsers/pages/:id/click.
+type ClickPageRequest struct {
+	BrowserID string `json:"browserId"`
+	Ref       int    `json:"ref"`
+}
+
+// ClickPageResponse is the response from POST /api/v1/browsers/pages/:id/click.
+type ClickPageResponse struct {
+	BrowserID string  `json:"browserId"`
+	PageID    string  `json:"pageId"`
+	Clicked   bool    `json:"clicked"`
+	Ref       int     `json:"ref"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+}

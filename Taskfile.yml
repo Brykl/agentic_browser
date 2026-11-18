@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  CLI_PKG: "./cli"
+  CLI_BIN: "./dist/agentic-browser.exe"
+
+tasks:
+  cli:
+    desc: Run cli command
+    cmds:
+      - go run "{{.CLI_PKG}}" {{.CLI_ARGS}}
+
+  cli:build:
+    desc: Compile cli binary (.exe)
+    cmds:
+      - go build -o "{{.CLI_BIN}}" "{{.CLI_PKG}}"
