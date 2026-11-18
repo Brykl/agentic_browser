@@ -99,3 +99,23 @@ func (c *Client) ClickPage(ctx context.Context, pageID string, req ClickPageRequ
 	}
 	return &res, nil
 }
+
+// GetPageScroll calls GET /api/v1/browsers/pages/:id/scroll?browserId=<id>.
+func (c *Client) GetPageScroll(ctx context.Context, browserID, pageID string) (*PageScrollInfoResponse, error) {
+	var res PageScrollInfoResponse
+	path := "/browsers/pages/" + url.PathEscape(pageID) + "/scroll"
+	if err := c.doJSON(ctx, http.MethodGet, path, browserQuery(browserID), nil, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// ScrollPage calls POST /api/v1/browsers/pages/:id/scroll.
+func (c *Client) ScrollPage(ctx context.Context, pageID string, req ScrollPageRequest) (*ScrollPageResponse, error) {
+	var res ScrollPageResponse
+	path := "/browsers/pages/" + url.PathEscape(pageID) + "/scroll"
+	if err := c.doJSON(ctx, http.MethodPost, path, nil, req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

@@ -84,6 +84,28 @@ func TestClientBrowsersAndPages(t *testing.T) {
 				Y:         34.5,
 			})
 
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/browsers/pages/p1/scroll":
+			_ = json.NewEncoder(w).Encode(client.PageScrollInfoResponse{
+				BrowserID: "b1",
+				PageID:    "p1",
+				X:         0,
+				Y:         120,
+				MaxX:      0,
+				MaxY:      800,
+			})
+
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/browsers/pages/p1/scroll":
+			var body client.ScrollPageRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode scroll page: %v", err)
+			}
+			_ = json.NewEncoder(w).Encode(client.ScrollPageResponse{
+				BrowserID: body.BrowserID,
+				PageID:    "p1",
+				X:         body.Left,
+				Y:         body.Top,
+			})
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -143,5 +165,15 @@ func TestClientBrowsersAndPages(t *testing.T) {
 	clickRes, err := c.ClickPage(ctx, "p1", client.ClickPageRequest{BrowserID: "b1", Ref: 1})
 	if err != nil || !clickRes.Clicked || clickRes.Ref != 1 {
 		t.Fatalf("ClickPage unexpected: res=%+v err=%v", clickRes, err)
+	}
+
+	scrollInfoRes, err := c.GetPageScroll(ctx, "b1", "p1")
+	if err != nil || scrollInfoRes.Y != 120 || scrollInfoRes.MaxY != 800 {
+		t.Fatalf("GetPageScroll unexpected: res=%+v err=%v", scrollInfoRes, err)
+	}
+
+	scrollRes, err := c.ScrollPage(ctx, "p1", client.ScrollPageRequest{BrowserID: "b1", Left: 10, Top: 250})
+	if err != nil || scrollRes.X != 10 || scrollRes.Y != 250 {
+		t.Fatalf("ScrollPage unexpected: res=%+v err=%v", scrollRes, err)
 	}
 }

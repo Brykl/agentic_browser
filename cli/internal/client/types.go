@@ -92,3 +92,28 @@ type ClickPageResponse struct {
 	X         float64 `json:"x"`
 	Y         float64 `json:"y"`
 }
+
+// PageScrollInfoResponse is the response from GET /api/v1/browsers/pages/:id/scroll.
+type PageScrollInfoResponse struct {
+	BrowserID string  `json:"browserId"`
+	PageID    string  `json:"pageId"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+	MaxX      float64 `json:"maxX"`
+	MaxY      float64 `json:"maxY"`
+}
+
+// ScrollPageRequest is the payload for POST /api/v1/browsers/pages/:id/scroll.
+type ScrollPageRequest struct {
+	BrowserID string  `json:"browserId"`
+	Left      float64 `json:"left,omitempty"`
+	Top       float64 `json:"top,omitempty"`
+}
+
+// ScrollPageResponse is the response from POST /api/v1/browsers/pages/:id/scroll.
+type ScrollPageResponse struct {
+	BrowserID string  `json:"browserId"`
+	PageID    string  `json:"pageId"`
+	X         float64 `json:"x"`
+	Y         float64 `json:"y"`
+}
