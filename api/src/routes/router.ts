@@ -9,8 +9,15 @@ export const DEFAULT_PAGE_ID = "269cb5c2-0de6-4447-9ec1-620e7e117cf5";
 export async function ApiRouter(fastify: FastifyInstance) {
     const browserManager = new BrowserManager();
 
-    await browserManager.createBrowser("system", { headless: true }, DEFAULT_BROWSER_ID);
-    await browserManager.createPage(DEFAULT_BROWSER_ID, { url: "https://example.com" }, DEFAULT_PAGE_ID);
+    fastify.addHook('onListen', async () => {
+        try {
+            await browserManager.createBrowser("system", { headless: true }, DEFAULT_BROWSER_ID);
+            await browserManager.createPage(DEFAULT_BROWSER_ID, { url: "https://example.com" }, DEFAULT_PAGE_ID);
+            fastify.log.info({ browserId: DEFAULT_BROWSER_ID, pageId: DEFAULT_PAGE_ID }, 'Default browser and page initialized');
+        } catch (err) {
+            fastify.log.error(err, 'Failed to initialize default browser and page');
+        }
+    })
 
     fastify.addHook('onClose', async () => {
         await browserManager.closeAll()
