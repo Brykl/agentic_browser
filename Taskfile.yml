@@ -4,7 +4,7 @@ version: '3'
 
 vars:
   CLI_PKG: "./cli"
-  CLI_BIN: "./dist/ab.exe"
+  CLI_BIN: "./bin/ab.exe"
 
 tasks:
   cli:
