@@ -1,0 +1,12 @@
+{
+  "name": "agent-browser-plugin",
+  "displayName": "Browser for agent",
+  "version": "1.0.0",
+  "description": "Virtual headless browser with live web UI and Go CLI (ab) for agent-driven navigation, accessibility snapshots, and page interactions.",
+  "logo": "assets/logo.svg",
+  "suggestedPrompts": [
+    "Start the virtual browser UI & API and open https://example.com",
+    "Take an accessibility snapshot of the active virtual browser page",
+    "Inspect and interact with a web page in the virtual browser using the CLI"
+  ]
+}

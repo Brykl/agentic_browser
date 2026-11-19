@@ -16,7 +16,8 @@
     "lint:ui": "pnpm --filter ui lint",
     "fmt": "prettier --write .",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "cli": "pnpm --filter cli dev --"
+    "cli": "pnpm --filter cli dev --",
+    "install:plugin": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/install-plugin.ps1"
   },
   "keywords": [],
   "author": "",

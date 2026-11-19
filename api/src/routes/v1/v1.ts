@@ -5,9 +5,10 @@ import type { BrowserManager } from '../../services/browser.ts'
 import { BrowsersRoutesV1 } from './browsers/browser.ts'
 
 export async function RouterV1(fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
-    // fastify.get('/', function (request, reply) {
-    //     reply.send({ hello: 'world' })
-    // })
+    // Lightweight readiness endpoint checked by the CLI/agent before starting a duplicate server
+    fastify.get('/health', async () => {
+        return { ok: true }
+    })
 
     fastify.register(McpRouteV1, { prefix: '/mcp', browserManager })
     fastify.register(BrowsersRoutesV1, { prefix: '/browsers', browserManager })

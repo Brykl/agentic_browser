@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { GreetTool } from './tools/greet.ts';
 import type { Browser } from 'puppeteer';
 import { ScrollPageTool } from './tools/page.ts';
-import type { BrowserManager } from '../browser/manager.ts';
+import type { BrowserManager } from '../services/browser.ts';
 import { CreateBrowserTool } from './tools/browser.ts';
 
 
