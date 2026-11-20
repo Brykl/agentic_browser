@@ -18,6 +18,8 @@ class PuppeteerBrowserDriver implements BrowserDriver {
 
         await page.setViewport(viewport)
 
+        await page.goto("https://google.com")
+
         return new PuppeteerPageDriver(page)
     }
 
