@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import type { BrowserManager } from '../../../../../services/browser.ts'
+import type { BrowserManager } from '../../../../../browser/manager.ts'
 
 export function GetPage(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
     fastify.get<{
@@ -19,17 +19,12 @@ export function GetPage(path: string, fastify: FastifyInstance, { browserManager
         const { id: pageId } = request.params
         const { browserId } = request.query
 
-        const page = browserManager.getPage(browserId, pageId)
+        const pageInfo = await browserManager.getPageInfo(browserId, pageId)
 
-        if (!page) {
+        if (!pageInfo) {
             return reply.code(404).send({ error: 'Page not found' })
         }
 
-        return reply.send({
-            browserId,
-            pageId,
-            url: page.url(),
-            title: await page.title(),
-        })
+        return reply.send(pageInfo)
     })
 }

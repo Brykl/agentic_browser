@@ -1,17 +1,9 @@
 import type { FastifyInstance } from 'fastify'
-import type { BrowserManager } from '../../../services/browser.ts'
+import type { BrowserManager } from '../../../browser/manager.ts'
 
 export function GetListOfBrowsers(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
-    fastify.get(path, async (request, reply) => {
-        const browsers = Array.from(
-            browserManager.getBrowsers().entries(),
-            ([id, session]) => ({
-                id,
-                ownerId: session.ownerId,
-                lastUsed: session.lastUsed,
-                pageIds: [...session.pages.keys()],
-            })
-        )
+    fastify.get(path, async (_request, reply) => {
+        const browsers = browserManager.listBrowsers()
 
         reply.send({ browsers })
     })

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import type { BrowserManager } from '../../../../services/browser.ts'
+import type { BrowserManager } from '../../../../browser/manager.ts'
 
 export function GetListOfPages(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
     fastify.get<{
@@ -17,7 +17,7 @@ export function GetListOfPages(path: string, fastify: FastifyInstance, { browser
     }, async (request, reply) => {
         const { browserId } = request.query
 
-        if (!browserManager.getBrowser(browserId)) {
+        if (!browserManager.hasBrowser(browserId)) {
             return reply.code(404).send({ error: 'Browser not found' })
         }
 

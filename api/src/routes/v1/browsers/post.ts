@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify'
-import type { BrowserManager } from '../../../services/browser.ts'
+import type { BrowserManager } from '../../../browser/manager.ts'
 
 interface CreateBrowserBody {
     ownerId: string
     headless?: boolean
+    engine?: string
 }
 
 export function CreateBrowser(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
@@ -15,13 +16,14 @@ export function CreateBrowser(path: string, fastify: FastifyInstance, { browserM
                 properties: {
                     ownerId: { type: 'string', minLength: 1 },
                     headless: { type: 'boolean' },
+                    engine: { type: 'string', enum: browserManager.listEngines() },
                 },
             },
         },
     }, async (request, reply) => {
-        const { ownerId, headless = true } = request.body
+        const { ownerId, headless = true, engine } = request.body
 
-        const browserId = await browserManager.createBrowser(ownerId, { headless })
+        const browserId = await browserManager.createBrowser(ownerId, { headless, engine })
 
         return reply.code(201).send({ browserId })
     })

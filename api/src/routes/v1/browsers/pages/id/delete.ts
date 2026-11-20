@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import type { BrowserManager } from '../../../../../services/browser.ts'
+import type { BrowserManager } from '../../../../../browser/manager.ts'
 
 export function DeletePage(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
     fastify.delete<{

@@ -1,7 +1,6 @@
 import * as z from 'zod/v4';
 import { McpServer } from '@modelcontextprotocol/server';
-import type { Browser } from 'puppeteer';
-import { BrowserManager } from '../../services/browser.ts'
+import type { BrowserManager } from '../../browser/manager.ts';
 
 
 export function ScrollPageTool(server: McpServer, browserManager: BrowserManager) {
@@ -18,19 +17,22 @@ export function ScrollPageTool(server: McpServer, browserManager: BrowserManager
         },
         async ({ browserId, pageId, direction, px }) => {
             try {
-                const browser = browserManager.getBrowser(browserId)
-                if (!browser?.browser) throw new Error(`Browser with id ${browserId} not found`)
-                const page = browserManager.getPage(browserId, pageId);
-                if (!page) {
+                if (!browserManager.hasBrowser(browserId)) {
+                    throw new Error(`Browser with id ${browserId} not found`);
+                }
+
+                const result = await browserManager.scrollPage(
+                    browserId,
+                    pageId,
+                    0,
+                    direction === 'down' ? px : -px,
+                );
+                if (!result) {
                     return {
                         isError: true,
                         content: [{ type: 'text', text: `Page with ID ${pageId} not found` }]
                     };
                 }
-
-                await page.evaluate((distance) => {
-                    window.scrollBy({ top: distance, behavior: 'instant' });
-                }, direction === 'down' ? px : -px);
 
                 return {
                     content: [{ type: 'text', text: `Scrolled page ${pageId} ${direction} by ${px} pixels` }]

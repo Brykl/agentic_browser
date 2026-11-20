@@ -2,6 +2,7 @@ export interface BrowserLaunchConfig {
     headless?: boolean;
     proxy?: { server: string; username?: string; password?: string };
     viewport?: { width: number; height: number };
+    engine?: string;
 }
 
 export interface FrameStream {

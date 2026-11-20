@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import type { BrowserManager } from '../../../services/browser.ts'
+import type { BrowserManager } from '../../../browser/manager.ts'
 import { PagesRoutesV1 } from './pages/route.ts'
 import { GetListOfBrowsers } from './get.ts'
 import { CreateBrowser } from './post.ts'

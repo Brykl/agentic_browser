@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import type { BrowserManager } from '../../../../../services/browser.ts'
+import type { BrowserManager } from '../../../../../browser/manager.ts'
 
 interface UpdatePageBody {
     browserId: string
@@ -25,17 +25,12 @@ export function UpdatePage(path: string, fastify: FastifyInstance, { browserMana
         const { id: pageId } = request.params
         const { browserId, pageUrl } = request.body
 
-        const page = await browserManager.updatePageUrl(browserId, pageId, pageUrl)
+        const pageInfo = await browserManager.updatePageUrl(browserId, pageId, pageUrl)
 
-        if (!page) {
+        if (!pageInfo) {
             return reply.code(404).send({ error: 'Page not found' })
         }
 
-        return reply.send({
-            browserId,
-            pageId,
-            url: page.url(),
-            title: await page.title(),
-        })
+        return reply.send(pageInfo)
     })
 }

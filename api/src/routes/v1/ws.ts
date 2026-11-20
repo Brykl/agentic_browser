@@ -1,17 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { NewWsServer } from '../../ws/server.ts'
-import { BaseImg, GetImages } from '../../ws/image.ts'
-import type { Browser } from 'puppeteer'
-import  {ScrenCast, type BrowserManager } from '../../services/browser.ts'
-
+import type { BrowserManager } from '../../browser/manager.ts'
 
 export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
-    const pageId = browserManager.createBrowser
-
-    // await page.setViewport({ width: 1280, height: 720 })
-    // await page.goto('https://til-uiren.qazaq-learn.workers.dev/')
-
-
     const wss = NewWsServer({
         server: fastify.server,
         path: '/api/v1/ws',
@@ -19,26 +10,25 @@ export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { 
 
     wss.on('connection', async (socket, req) => {
         socket.on('error', (error) => fastify.log.error(error))
-        
+
         const url = new URL(req.url ?? '', `http://${req.headers.host ?? 'localhost'}`)
         const browserId = url.searchParams.get('browserId')
         const pageId = url.searchParams.get('pageId')
 
         if (!browserId || !pageId) {
-        socket.close(1008, 'Missing browserId or pageId query parameter')
-        return
+            socket.close(1008, 'Missing browserId or pageId query parameter')
+            return
         }
 
-        const page = browserManager.getPage(browserId, pageId)
-        if (!page) {
-        socket.close(1008, 'Browser or page not found')
-        return
+        const cast = await browserManager.startScreencast(browserId, pageId)
+        if (!cast) {
+            socket.close(1008, 'Browser or page not found')
+            return
         }
 
-        const cast = await ScrenCast(page);
         if (socket.readyState !== socket.OPEN) {
-            await cast.stop();
-            return;
+            await cast.stop()
+            return
         }
 
         const sendLatestFrame = () => {
