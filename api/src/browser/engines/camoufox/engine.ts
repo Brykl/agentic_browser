@@ -1,4 +1,3 @@
-import puppeteer from "puppeteer";
 import { Camoufox, type NewBrowserOptions } from "camoufox";
 import type { BrowserDriver, BrowserEngine, BrowserLaunchConfig, PageDriver } from "../../types.ts";
 import { CamoufoxPageDriver } from "./page.ts";
