@@ -3,7 +3,7 @@ import type { BrowserManager } from '../../../../../../browser/manager.ts'
 
 interface ClickPageBody {
     browserId: string
-    ref: number
+    ref: string
 }
 
 export function ClickPage(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
@@ -17,7 +17,7 @@ export function ClickPage(path: string, fastify: FastifyInstance, { browserManag
                 required: ['browserId', 'ref'],
                 properties: {
                     browserId: { type: 'string', minLength: 1 },
-                    ref: { type: 'integer', minimum: 1 },
+                    ref: { type: 'string', minLength: 1 },
                 },
             },
         },

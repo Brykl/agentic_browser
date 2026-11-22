@@ -82,7 +82,7 @@ type PageSnapshotResponse struct {
 // ClickPageRequest is the payload for POST /api/v1/browsers/pages/:id/click.
 type ClickPageRequest struct {
 	BrowserID string `json:"browserId"`
-	Ref       int    `json:"ref"`
+	Ref       string `json:"ref"`
 }
 
 // ClickPageResponse is the response from POST /api/v1/browsers/pages/:id/click.
@@ -90,7 +90,7 @@ type ClickPageResponse struct {
 	BrowserID string  `json:"browserId"`
 	PageID    string  `json:"pageId"`
 	Clicked   bool    `json:"clicked"`
-	Ref       int     `json:"ref"`
+	Ref       string  `json:"ref"`
 	X         float64 `json:"x"`
 	Y         float64 `json:"y"`
 }
@@ -98,7 +98,7 @@ type ClickPageResponse struct {
 // FillPageRequest is the payload for POST /api/v1/browsers/pages/:id/fill.
 type FillPageRequest struct {
 	BrowserID string `json:"browserId"`
-	Ref       int    `json:"ref"`
+	Ref       string `json:"ref"`
 	Value     string `json:"value"`
 }
 
@@ -107,7 +107,7 @@ type FillPageResponse struct {
 	BrowserID string `json:"browserId"`
 	PageID    string `json:"pageId"`
 	Filled    bool   `json:"filled"`
-	Ref       int    `json:"ref"`
+	Ref       string `json:"ref"`
 	Value     string `json:"value"`
 }
 

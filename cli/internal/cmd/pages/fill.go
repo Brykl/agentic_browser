@@ -2,6 +2,7 @@ package pages
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -13,7 +14,7 @@ import (
 func newFillCmd(opts *config.Options) *cobra.Command {
 	var (
 		browserID string
-		ref       int
+		ref       string
 		value     string
 	)
 
@@ -23,8 +24,9 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 		Short:   "Fill a form field on a page by its snapshot ref",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if ref < 1 {
-				return fmt.Errorf("--ref must be >= 1")
+			ref = strings.TrimSpace(ref)
+			if ref == "" {
+				return fmt.Errorf("--ref must not be empty")
 			}
 
 			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
@@ -50,13 +52,13 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 				return output.PrintJSON(out, res)
 			}
 
-			_, err = fmt.Fprintf(out, "Filled ref [%d] with %q\n", res.Ref, res.Value)
+			_, err = fmt.Fprintf(out, "Filled ref [%s] with %q\n", res.Ref, res.Value)
 			return err
 		},
 	}
 
 	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
-	cmd.Flags().IntVar(&ref, "ref", 0, "Element ref number from snapshot (required, >= 1)")
+	cmd.Flags().StringVar(&ref, "ref", "", "Element ref ID from snapshot (required, e.g. e8)")
 	cmd.Flags().StringVarP(&value, "value", "v", "", "Text value to enter into the element (required)")
 	_ = cmd.MarkFlagRequired("ref")
 	_ = cmd.MarkFlagRequired("value")

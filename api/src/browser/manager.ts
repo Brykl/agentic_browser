@@ -174,13 +174,19 @@ export class BrowserManager {
         return await page.snapshot();
     }
 
-    async clickButton(browserId: string, pageId: string, ref: number) {
+    async fullSnapshotPage(browserId: string, pageId: string): Promise<string | undefined> {
+        const page = this.getPageDriver(browserId, pageId);
+        if (!page) return undefined;
+        return await page.fullSnapshot();
+    }
+
+    async clickButton(browserId: string, pageId: string, ref: string) {
         const page = this.getPageDriver(browserId, pageId);
         if (!page) return undefined;
         return await page.click(ref);
     }
 
-    async fillForm(browserId: string, pageId: string, ref: number, value: string) {
+    async fillForm(browserId: string, pageId: string, ref: string, value: string) {
         const page = this.getPageDriver(browserId, pageId);
         if (!page) return undefined;
         return await page.fill(ref, value);

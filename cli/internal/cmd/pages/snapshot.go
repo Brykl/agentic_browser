@@ -10,7 +10,10 @@ import (
 )
 
 func newSnapshotCmd(opts *config.Options) *cobra.Command {
-	var browserID string
+	var (
+		browserID string
+		full      bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "snapshot [page-id]",
@@ -26,7 +29,7 @@ func newSnapshotCmd(opts *config.Options) *cobra.Command {
 				return err
 			}
 
-			res, err := opts.NewClient().SnapshotPage(cmd.Context(), resolvedBrowserID, resolvedPageID)
+			res, err := opts.NewClient().SnapshotPage(cmd.Context(), resolvedBrowserID, resolvedPageID, full)
 			if err != nil {
 				return err
 			}
@@ -42,6 +45,7 @@ func newSnapshotCmd(opts *config.Options) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
+	cmd.Flags().BoolVar(&full, "full", false, "Return the full uncompacted accessibility snapshot")
 
 	return cmd
 }

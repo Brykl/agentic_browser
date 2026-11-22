@@ -3,7 +3,7 @@ import type { BrowserManager } from '../../../../../../browser/manager.ts'
 
 interface FillPageBody {
     browserId: string
-    ref: number
+    ref: string
     value: string
 }
 
@@ -18,7 +18,7 @@ export function FillPage(path: string, fastify: FastifyInstance, { browserManage
                 required: ['browserId', 'ref', 'value'],
                 properties: {
                     browserId: { type: 'string', minLength: 1 },
-                    ref: { type: 'integer', minimum: 1 },
+                    ref: { type: 'string', minLength: 1 },
                     value: { type: 'string' },
                 },
             },

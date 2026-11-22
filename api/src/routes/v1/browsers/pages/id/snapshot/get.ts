@@ -4,7 +4,7 @@ import type { BrowserManager } from '../../../../../../browser/manager.ts'
 export function GetPageSnapshot(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
     fastify.get<{
         Params: { id: string }
-        Querystring: { browserId: string }
+        Querystring: { browserId: string; full?: boolean }
     }>(path, {
         schema: {
             querystring: {
@@ -12,16 +12,19 @@ export function GetPageSnapshot(path: string, fastify: FastifyInstance, { browse
                 required: ['browserId'],
                 properties: {
                     browserId: { type: 'string', minLength: 1 },
+                    full: { type: 'boolean' },
                 },
             },
         },
     }, async (request, reply) => {
         const { id: pageId } = request.params
-        const { browserId } = request.query
+        const { browserId, full } = request.query
 
-        const snapshot = await browserManager.snapshotPage(browserId, pageId)
+        const snapshot = full
+            ? await browserManager.fullSnapshotPage(browserId, pageId)
+            : await browserManager.snapshotPage(browserId, pageId)
 
-        if (!snapshot) {
+        if (snapshot === undefined) {
             return reply.code(404).send({ error: 'Page not found' })
         }
 

@@ -1,11 +1,12 @@
 import { randomInt } from 'node:crypto';
 import type { Page } from 'puppeteer';
+import type { Protocol } from 'puppeteer-core';
 import type { FrameStream, PageDriver } from '../../types.ts';
-import { optimizeAXTreeForLLM } from './ax-tree.ts';
+import { compactAXTreeForLLM, optimizeAXTreeForLLM } from './ax-tree.ts';
 
 export class PuppeteerPageDriver implements PageDriver {
     private readonly page: Page;
-    private refMap = new Map<number, number>();
+    private refMap = new Map<string, number>();
 
     constructor(page: Page) {
         this.page = page;
@@ -37,19 +38,31 @@ export class PuppeteerPageDriver implements PageDriver {
         await this.page.close();
     }
 
-    async snapshot(): Promise<string> {
+    private async fetchAXTree(): Promise<Protocol.Accessibility.AXNode[]> {
         const cdp = await this.page.createCDPSession();
         try {
             const { nodes } = await cdp.send('Accessibility.getFullAXTree');
-            const { text, refMap } = optimizeAXTreeForLLM(nodes);
-            this.refMap = refMap;
-            return text;
+            return nodes;
         } finally {
             await cdp.detach().catch(() => { });
         }
     }
 
-    async click(ref: number): Promise<{ clicked: true; ref: number; x?: number; y?: number }> {
+    async snapshot(): Promise<string> {
+        const nodes = await this.fetchAXTree();
+        const { text, refMap } = compactAXTreeForLLM(nodes);
+        this.refMap = refMap;
+        return text;
+    }
+
+    async fullSnapshot(): Promise<string> {
+        const nodes = await this.fetchAXTree();
+        const { text, refMap } = optimizeAXTreeForLLM(nodes);
+        this.refMap = refMap;
+        return text;
+    }
+
+    async click(ref: string): Promise<{ clicked: true; ref: string; x?: number; y?: number }> {
         const backendNodeId = this.refMap.get(ref);
         if (!backendNodeId) {
             throw new Error(`Ref [${ref}] not found. Take a new snapshot.`);
@@ -74,7 +87,7 @@ export class PuppeteerPageDriver implements PageDriver {
         }
     }
 
-    async fill(ref: number, value: string): Promise<{ filled: true; ref: number; value: string }> {
+    async fill(ref: string, value: string): Promise<{ filled: true; ref: string; value: string }> {
         await this.click(ref);
         await this.page.bringToFront().catch(() => { });
 

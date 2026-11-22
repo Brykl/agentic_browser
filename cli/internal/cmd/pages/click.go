@@ -2,6 +2,7 @@ package pages
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -13,7 +14,7 @@ import (
 func newClickCmd(opts *config.Options) *cobra.Command {
 	var (
 		browserID string
-		ref       int
+		ref       string
 	)
 
 	cmd := &cobra.Command{
@@ -21,8 +22,9 @@ func newClickCmd(opts *config.Options) *cobra.Command {
 		Short: "Click an element on a page by its snapshot ref",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if ref < 1 {
-				return fmt.Errorf("--ref must be >= 1")
+			ref = strings.TrimSpace(ref)
+			if ref == "" {
+				return fmt.Errorf("--ref must not be empty")
 			}
 
 			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
@@ -47,13 +49,13 @@ func newClickCmd(opts *config.Options) *cobra.Command {
 				return output.PrintJSON(out, res)
 			}
 
-			_, err = fmt.Fprintf(out, "Clicked ref [%d] at (%.1f, %.1f)\n", res.Ref, res.X, res.Y)
+			_, err = fmt.Fprintf(out, "Clicked ref [%s] at (%.1f, %.1f)\n", res.Ref, res.X, res.Y)
 			return err
 		},
 	}
 
 	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
-	cmd.Flags().IntVar(&ref, "ref", 0, "Element ref number from snapshot (required, >= 1)")
+	cmd.Flags().StringVar(&ref, "ref", "", "Element ref ID from snapshot (required, e.g. e5)")
 	_ = cmd.MarkFlagRequired("ref")
 
 	return cmd

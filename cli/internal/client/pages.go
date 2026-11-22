@@ -80,11 +80,15 @@ func (c *Client) DeletePage(ctx context.Context, browserID, pageID string) (*Del
 	return &res, nil
 }
 
-// SnapshotPage calls GET /api/v1/browsers/pages/:id/snapshot?browserId=<id>.
-func (c *Client) SnapshotPage(ctx context.Context, browserID, pageID string) (*PageSnapshotResponse, error) {
+// SnapshotPage calls GET /api/v1/browsers/pages/:id/snapshot?browserId=<id>[&full=true].
+func (c *Client) SnapshotPage(ctx context.Context, browserID, pageID string, full bool) (*PageSnapshotResponse, error) {
 	var res PageSnapshotResponse
 	path := "/browsers/pages/" + url.PathEscape(pageID) + "/snapshot"
-	if err := c.doJSON(ctx, http.MethodGet, path, browserQuery(browserID), nil, &res); err != nil {
+	q := browserQuery(browserID)
+	if full {
+		q.Set("full", "true")
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, q, nil, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil

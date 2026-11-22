@@ -71,10 +71,14 @@ func TestClientBrowsersAndPages(t *testing.T) {
 			})
 
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/browsers/pages/p1/snapshot":
+			snap := "[ref=e1] button \"Submit\""
+			if r.URL.Query().Get("full") == "true" {
+				snap = "- generic [ref=e1]:\n  - button \"Submit\" [ref=e2]"
+			}
 			_ = json.NewEncoder(w).Encode(client.PageSnapshotResponse{
 				BrowserID: "b1",
 				PageID:    "p1",
-				Snapshot:  "[1] button \"Submit\"",
+				Snapshot:  snap,
 			})
 
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/browsers/pages/p1/click":
@@ -82,7 +86,7 @@ func TestClientBrowsersAndPages(t *testing.T) {
 				BrowserID: "b1",
 				PageID:    "p1",
 				Clicked:   true,
-				Ref:       1,
+				Ref:       "e1",
 				X:         12.5,
 				Y:         34.5,
 			})
@@ -184,18 +188,23 @@ func TestClientBrowsersAndPages(t *testing.T) {
 		t.Fatalf("DeletePage unexpected: res=%+v err=%v", delRes, err)
 	}
 
-	snapRes, err := c.SnapshotPage(ctx, "b1", "p1")
-	if err != nil || snapRes.Snapshot == "" {
+	snapRes, err := c.SnapshotPage(ctx, "b1", "p1", false)
+	if err != nil || snapRes.Snapshot != "[ref=e1] button \"Submit\"" {
 		t.Fatalf("SnapshotPage unexpected: res=%+v err=%v", snapRes, err)
 	}
 
-	clickRes, err := c.ClickPage(ctx, "p1", client.ClickPageRequest{BrowserID: "b1", Ref: 1})
-	if err != nil || !clickRes.Clicked || clickRes.Ref != 1 {
+	fullSnapRes, err := c.SnapshotPage(ctx, "b1", "p1", true)
+	if err != nil || fullSnapRes.Snapshot != "- generic [ref=e1]:\n  - button \"Submit\" [ref=e2]" {
+		t.Fatalf("SnapshotPage(full=true) unexpected: res=%+v err=%v", fullSnapRes, err)
+	}
+
+	clickRes, err := c.ClickPage(ctx, "p1", client.ClickPageRequest{BrowserID: "b1", Ref: "e1"})
+	if err != nil || !clickRes.Clicked || clickRes.Ref != "e1" {
 		t.Fatalf("ClickPage unexpected: res=%+v err=%v", clickRes, err)
 	}
 
-	fillRes, err := c.FillPage(ctx, "p1", client.FillPageRequest{BrowserID: "b1", Ref: 2, Value: "hello"})
-	if err != nil || !fillRes.Filled || fillRes.Ref != 2 || fillRes.Value != "hello" {
+	fillRes, err := c.FillPage(ctx, "p1", client.FillPageRequest{BrowserID: "b1", Ref: "e2", Value: "hello"})
+	if err != nil || !fillRes.Filled || fillRes.Ref != "e2" || fillRes.Value != "hello" {
 		t.Fatalf("FillPage unexpected: res=%+v err=%v", fillRes, err)
 	}
 

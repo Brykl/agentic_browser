@@ -1,10 +1,10 @@
 # Agentic Browser (`agent-browser-plugin`)
 
-Virtual headless Puppeteer browser with a live Web UI, REST/WebSocket/MCP API, and a Go CLI (`ab.exe` / `agb`), packaged as a plugin for **Google Antigravity**.
+Multi-engine virtual browser (**Camoufox** anti-detect Firefox + **Puppeteer** Chromium) with a live Web UI, REST/WebSocket/MCP API, and a Go CLI (`ab.exe` / `agb`), packaged as a plugin for **Google Antigravity**.
 
 ## Architecture
 
-- **API + Static UI (`api/`)**: Fastify server (`http://127.0.0.1:3777`) managing Puppeteer sessions, accessibility snapshots, page actions, live screencast WebSocket (`/api/v1/ws`), and serving the built React UI (`ui/dist/`).
+- **API + Static UI (`api/`)**: Fastify server (`http://127.0.0.1:3777`) managing Camoufox and Puppeteer sessions via a pluggable `BrowserEngine` architecture, compact & full accessibility snapshots (`[ref=eN]`), page actions, live screencast WebSocket (`/api/v1/ws`), and serving the built React UI (`ui/dist/`).
 - **Web UI (`ui/`)**: React + Vite live browser viewer (tab switcher, URL bar, real-time frame stream).
 - **CLI (`cli/`, prebuilt at `bin/ab.exe`)**: Go binary (`windows/amd64` prebuilt in git) for controlling browsers and pages (`browsers`, `pages`, `use`, `status`, `snapshot`, `click`, `fill`, `scroll`).
 - **Antigravity Plugin (`plugin.json`, `skills/`, `rules/`)**: Teaches Antigravity agents how to start the API/UI server and control the virtual browser via the CLI.
@@ -81,6 +81,7 @@ pnpm run start
 | :--- | :--- | :--- |
 | `PORT` | `3777` | HTTP/WS port for the Fastify API + UI server |
 | `HOST` | `127.0.0.1` | Bind address for the server |
+| `BROWSER_ENGINE` | `camoufox` | Default browser engine (`camoufox` or `puppeteer`) |
 | `AGENTIC_BROWSER_HEADLESS` | `true` | Set to `false` or `0` to launch visible Chrome windows |
 | `AGENTIC_BROWSER_DEFAULT_URL` | *(blank)* | Optional initial URL opened in the default page on server startup |
 | `AGENTIC_BROWSER_UI_DIR` | *(auto)* | Override path to built `ui/dist` static files |

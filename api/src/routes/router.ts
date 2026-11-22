@@ -19,17 +19,18 @@ export async function ApiRouter(fastify: FastifyInstance) {
         new CamoufoxEngine
     ],
         process.env.BROWSER_ENGINE?.trim().toLowerCase() || 'camoufox')
+    process.env.BROWSER_HEADLESS || true
 
     // Pre-create a default browser and blank page on startup so the UI and CLI work immediately;
     // avoid external network requests at boot unless AGENTIC_BROWSER_DEFAULT_URL is explicitly set.
     fastify.addHook('onListen', async () => {
-        const headlessEnv = process.env.AGENTIC_BROWSER_HEADLESS?.trim().toLowerCase() || false;
+        const headlessEnv = process.env.AGENTIC_BROWSER_HEADLESS?.trim().toLowerCase() || true;
         // const headless = headlessEnv !== 'false' && headlessEnv !== '0';
         const defaultUrl = process.env.AGENTIC_BROWSER_DEFAULT_URL?.trim() || "https://google.com";
 
         try {
             const config: BrowserLaunchConfig = {
-                headless: false
+                headless: true
             }
             const browserId = await browserManager.createBrowser("system", config, DEFAULT_BROWSER_ID)
             const pageId = await browserManager.createPage(

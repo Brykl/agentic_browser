@@ -5,7 +5,7 @@ description: Start the virtual browser API & live web UI and control browser ses
 
 # Agentic Browser (API + UI + CLI)
 
-Control a headless Puppeteer virtual browser with a live web UI (`http://localhost:3777`) using the bundled Go CLI.
+Control virtual browser sessions (**Camoufox** anti-detect Firefox and **Puppeteer** Chromium) with a live web UI (`http://localhost:3777`) using the bundled Go CLI.
 
 ## Locating Plugin Files
 
@@ -30,7 +30,7 @@ Expected response: `{"ok":true}`.
 
 If the server is not running:
 1. Start `node "<plugin_root>\dist\index.js"` with `run_command` and `IsDaemon: true` (never block on a foreground server).
-   - Optional env vars: `PORT` (default `3777`), `HOST` (default `127.0.0.1`), `AGENTIC_BROWSER_HEADLESS=true|false`, `AGENTIC_BROWSER_DEFAULT_URL`.
+   - Optional env vars: `PORT` (default `3777`), `HOST` (default `127.0.0.1`), `BROWSER_ENGINE=camoufox|puppeteer` (default `camoufox`), `AGENTIC_BROWSER_HEADLESS=true|false`, `AGENTIC_BROWSER_DEFAULT_URL`.
 2. Re-check `http://127.0.0.1:3777/api/v1/health` until it returns `{"ok":true}`.
 3. Share the live UI URL `http://localhost:3777` with the user so they can watch the live browser canvas, switch tabs, or inspect sessions.
 
@@ -44,9 +44,11 @@ The server automatically creates a default browser and page on startup.
 # List browsers (use --json for structured parsing)
 .\bin\ab.exe browsers list --json
 
-# Set active browser in CLI state (or create a new one)
+# Set active browser in CLI state (or create a new one, optionally choosing engine)
 .\bin\ab.exe use browser <browser-id>
 .\bin\ab.exe browsers create --owner-id agent
+.\bin\ab.exe browsers create --owner-id agent --engine camoufox
+.\bin\ab.exe browsers create --owner-id agent --engine puppeteer
 
 # List pages in the active browser, or open a new page (also sets it active)
 .\bin\ab.exe pages list --json
@@ -63,12 +65,13 @@ To avoid state collisions across concurrent agents, pass `--browser-id <id>`, `[
 Always follow the **snapshot -> act -> re-snapshot** loop:
 
 ```powershell
-# 1. Capture accessibility tree with numeric [ref] IDs
+# 1. Capture compact accessibility tree with [ref=eN] IDs (or --full for the raw uncompacted tree)
 .\bin\ab.exe pages snapshot
+.\bin\ab.exe pages snapshot --full
 
-# 2. Act using [ref] IDs from the latest snapshot
-.\bin\ab.exe pages click --ref 5
-.\bin\ab.exe pages fill --ref 8 --value "search query"
+# 2. Act using ref IDs from the latest snapshot
+.\bin\ab.exe pages click --ref e5
+.\bin\ab.exe pages fill --ref e8 --value "search query"
 .\bin\ab.exe pages scroll --top 500
 .\bin\ab.exe pages scroll-info
 

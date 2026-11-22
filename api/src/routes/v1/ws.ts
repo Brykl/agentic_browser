@@ -20,7 +20,14 @@ export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { 
             return
         }
 
-        const cast = await browserManager.startScreencast(browserId, pageId)
+        let cast;
+        try {
+            cast = await browserManager.startScreencast(browserId, pageId)
+        } catch (error) {
+            fastify.log.error(error, 'Failed to start screencast')
+            socket.close(1011, 'Failed to start screencast')
+            return
+        }
         if (!cast) {
             socket.close(1008, 'Browser or page not found')
             return
