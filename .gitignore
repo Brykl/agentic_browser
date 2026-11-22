@@ -19,6 +19,7 @@ postman/
 # Test output
 coverage/
 puppeteer-check.png
+screenshots/
 
 # OS files
 .DS_Store

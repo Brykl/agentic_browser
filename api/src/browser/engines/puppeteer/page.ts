@@ -13,6 +13,8 @@ import {
     windowsKeyCode,
 } from '../../input.ts';
 import { compactAXTreeForLLM, optimizeAXTreeForLLM } from './ax-tree.ts';
+import { nextScreenshotPath } from '../../screenshot.ts';
+import { path } from "ghost-cursor";
 
 export class PuppeteerPageDriver implements PageDriver {
     private readonly page: Page;
@@ -347,6 +349,12 @@ export class PuppeteerPageDriver implements PageDriver {
 
         const size = this.page.viewport();
         return size ? { width: size.width, height: size.height } : next;
+    }
+
+    async screenshot(): Promise<string> {
+        const filePath = await nextScreenshotPath();
+        await this.page.screenshot({ path: filePath, type: 'png' });
+        return filePath;
     }
 
     onNavigate(cb: () => void): void {

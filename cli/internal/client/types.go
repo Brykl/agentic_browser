@@ -147,3 +147,15 @@ type ScrollPageResponse struct {
 	X         float64 `json:"x"`
 	Y         float64 `json:"y"`
 }
+
+// ScreenshotPageRequest is the payload for POST /api/v1/browsers/pages/:id/screenshot.
+type ScreenshotPageRequest struct {
+	BrowserID string `json:"browserId"`
+}
+
+// ScreenshotPageResponse is the response from POST /api/v1/browsers/pages/:id/screenshot.
+type ScreenshotPageResponse struct {
+	BrowserID string `json:"browserId"`
+	PageID    string `json:"pageId"`
+	Path      string `json:"path"`
+}

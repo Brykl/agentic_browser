@@ -180,6 +180,12 @@ export class BrowserManager {
         return await page.fullSnapshot();
     }
 
+    async screenshotPage(browserId: string, pageId: string): Promise<string | undefined> {
+        const page = this.getPageDriver(browserId, pageId);
+        if (!page) return undefined;
+        return await page.screenshot();
+    }
+
     async clickButton(browserId: string, pageId: string, ref: string) {
         const page = this.getPageDriver(browserId, pageId);
         if (!page) return undefined;

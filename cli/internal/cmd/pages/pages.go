@@ -22,6 +22,7 @@ func NewCmd(opts *config.Options) *cobra.Command {
 		newDeleteCmd(opts),
 		newReloadCmd(opts),
 		newSnapshotCmd(opts),
+		newScreenshotCmd(opts),
 		newClickCmd(opts),
 		newFillCmd(opts),
 		newScrollCmd(opts),

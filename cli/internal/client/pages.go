@@ -144,3 +144,14 @@ func (c *Client) ScrollPage(ctx context.Context, pageID string, req ScrollPageRe
 	}
 	return &res, nil
 }
+
+// ScreenshotPage calls POST /api/v1/browsers/pages/:id/screenshot.
+func (c *Client) ScreenshotPage(ctx context.Context, browserID, pageID string) (*ScreenshotPageResponse, error) {
+	var res ScreenshotPageResponse
+	path := "/browsers/pages/" + url.PathEscape(pageID) + "/screenshot"
+	req := ScreenshotPageRequest{BrowserID: browserID}
+	if err := c.doJSON(ctx, http.MethodPost, path, nil, req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

@@ -4,9 +4,9 @@ Multi-engine virtual browser (**Camoufox** anti-detect Firefox + **Puppeteer** C
 
 ## Architecture
 
-- **API + Static UI (`api/`)**: Fastify server (`http://127.0.0.1:3777`) managing Camoufox and Puppeteer sessions via a pluggable `BrowserEngine` architecture, compact & full accessibility snapshots (`[ref=eN]`), page actions, live screencast WebSocket (`/api/v1/ws`), and serving the built React UI (`ui/dist/`).
-- **Web UI (`ui/`)**: React + Vite live browser viewer (tab switcher, URL bar, real-time frame stream).
-- **CLI (`cli/`, prebuilt at `bin/ab.exe`)**: Go binary (`windows/amd64` prebuilt in git) for controlling browsers and pages (`browsers`, `pages`, `use`, `status`, `snapshot`, `click`, `fill`, `scroll`).
+- **API + Static UI (`api/`)**: Fastify server (`http://127.0.0.1:3777`) managing Camoufox and Puppeteer sessions via a pluggable `BrowserEngine` architecture, compact & full accessibility snapshots (`[ref=eN]`), numbered PNG screenshots (`screenshots/`), page actions, push-based binary JPEG screencast + interactive input WebSocket (`/api/v1/ws`), and serving the built React UI (`ui/dist/`).
+- **Web UI (`ui/`)**: React + Vite interactive live browser viewer (tab switcher, URL bar, binary `createImageBitmap` frame stream, live mouse/wheel/keyboard/paste input including non-US layouts, and automatic viewport resize).
+- **CLI (`cli/`, prebuilt at `bin/ab.exe`)**: Go binary (`windows/amd64` prebuilt in git) for controlling browsers and pages (`browsers`, `pages`, `use`, `status`, `snapshot`, `screenshot`, `click`, `fill`, `scroll`).
 - **Antigravity Plugin (`plugin.json`, `skills/`, `rules/`)**: Teaches Antigravity agents how to start the API/UI server and control the virtual browser via the CLI.
 
 ---
@@ -59,6 +59,7 @@ pnpm run start
 .\bin\ab.exe browsers list --json
 .\bin\ab.exe pages create --url "https://example.com"
 .\bin\ab.exe pages snapshot
+.\bin\ab.exe pages screenshot
 ```
 
 ### Updating after code changes

@@ -12,6 +12,7 @@ import {
     clampViewport,
     modifierBit,
 } from "../../input.ts";
+import { nextScreenshotPath } from "../../screenshot.ts";
 
 /** Target frame budget while the page is actively changing (~25 FPS). */
 const ACTIVE_FRAME_MS = 40;
@@ -260,6 +261,12 @@ export class CamoufoxPageDriver implements PageDriver {
                 await send(code).catch(() => { });
             }
         }
+    }
+
+    async screenshot(): Promise<string> {
+        const filePath = await nextScreenshotPath();
+        await this.page.screenshot({ path: filePath, type: 'png' });
+        return filePath;
     }
 
     private async moveMouseIfNeeded(x: number, y: number): Promise<void> {

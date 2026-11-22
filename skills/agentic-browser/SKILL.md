@@ -1,6 +1,6 @@
 ---
 name: agentic-browser
-description: Start the virtual browser API & live web UI and control browser sessions/pages via the `ab.exe` (`agb`) CLI. Use when the user asks to launch the virtual browser, open or test pages in the agentic browser, inspect accessibility snapshots, or click/fill/scroll elements via CLI.
+description: Start the virtual browser API & live web UI and control browser sessions/pages via the `ab.exe` (`agb`) CLI. Use when the user asks to launch the virtual browser, open or test pages in the agentic browser, inspect accessibility snapshots, take screenshots, or click/fill/scroll elements via CLI.
 ---
 
 # Agentic Browser (API + UI + CLI)
@@ -32,7 +32,7 @@ If the server is not running:
 1. Start `node "<plugin_root>\dist\index.js"` with `run_command` and `IsDaemon: true` (never block on a foreground server).
    - Optional env vars: `PORT` (default `3777`), `HOST` (default `127.0.0.1`), `BROWSER_ENGINE=camoufox|puppeteer` (default `camoufox`), `AGENTIC_BROWSER_HEADLESS=true|false`, `AGENTIC_BROWSER_DEFAULT_URL`.
 2. Re-check `http://127.0.0.1:3777/api/v1/health` until it returns `{"ok":true}`.
-3. Share the live UI URL `http://localhost:3777` with the user so they can watch the live browser canvas, switch tabs, or inspect sessions.
+3. Share the live UI URL `http://localhost:3777` with the user so they can watch and interact with the live browser canvas (mouse, wheel, keyboard, paste, tab switching, and automatic viewport resize).
 
 If `dist/index.js` is missing in the source repo, build it first (`pnpm run build`); if `bin/ab.exe` is missing, build it with `go build -o ./bin/ab.exe ./cli`.
 
@@ -68,6 +68,9 @@ Always follow the **snapshot -> act -> re-snapshot** loop:
 # 1. Capture compact accessibility tree with [ref=eN] IDs (or --full for the raw uncompacted tree)
 .\bin\ab.exe pages snapshot
 .\bin\ab.exe pages snapshot --full
+
+# Save a numbered PNG screenshot to screenshots/ (prints saved file path)
+.\bin\ab.exe pages screenshot
 
 # 2. Act using ref IDs from the latest snapshot
 .\bin\ab.exe pages click --ref e5
