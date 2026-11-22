@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto';
 import type { Page } from 'puppeteer';
 import type { Protocol } from 'puppeteer-core';
-import type { FrameStream, PageDriver } from '../../types.ts';
+import type { FrameStream, PageDriver, InputEvent } from '../../types.ts';
 import { compactAXTreeForLLM, optimizeAXTreeForLLM } from './ax-tree.ts';
 
 export class PuppeteerPageDriver implements PageDriver {
@@ -182,6 +182,16 @@ export class PuppeteerPageDriver implements PageDriver {
                 await cdp.detach().catch(() => { });
             },
         };
+    }
+
+    async dispatchInput(msg: InputEvent): Promise<void> {
+        // TODO: const cdp = this.page.createCDPSession()
+    }
+
+    async setViewport(width: number, height: number): Promise<{ width: number; height: number }> {
+        await this.page.setViewport({ width, height });
+        const size = this.page.viewport();
+        return size ? { width: size.width, height: size.height } : { width, height };
     }
 
     onNavigate(cb: () => void): void {

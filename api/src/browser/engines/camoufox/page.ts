@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import type { FrameStream, PageDriver } from "../../types.ts";
+import type { FrameStream, PageDriver, InputEvent } from "../../types.ts";
 import type { Page } from "playwright-core";
 import { compactAriaSnapshot } from "./aria-snapshot.ts";
 
@@ -132,6 +132,51 @@ export class CamoufoxPageDriver implements PageDriver {
             },
         };
     }
+    async dispatchInput(msg: InputEvent): Promise<void> {
+        switch (msg.t) {
+            case 'mouse':
+                const button = MOUSE_BUTTONS[msg.button] ?? 'left';
+                const clickCount = msg.clicks ?? 1;
+
+                switch (msg.kind) {
+                    case 'move':
+                        await this.page.mouse.move(msg.x, msg.y);
+                        break;
+                    case 'down':
+                        await this.page.mouse.move(msg.x, msg.y);
+                        await this.page.mouse.down({ button, clickCount });
+                        break;
+                    case 'up':
+                        await this.page.mouse.move(msg.x, msg.y);
+                        await this.page.mouse.up({ button, clickCount });
+                        break;
+                }
+                break;
+            case 'wheel':
+                await this.page.mouse.move(msg.x, msg.y);
+                await this.page.mouse.wheel(msg.dx, msg.dy);
+                break;
+            case 'key':
+                if (msg.kind === 'down') {
+                    await this.page.keyboard.down(msg.key || msg.code);
+                } else {
+                    await this.page.keyboard.up(msg.key || msg.code);
+                }
+                break;
+            case 'text':
+                if (msg.text) {
+                    await this.page.keyboard.insertText(msg.text);
+                }
+                break;
+        }
+    }
+
+    async setViewport(width: number, height: number): Promise<{ width: number; height: number }> {
+        await this.page.setViewportSize({ width, height });
+        const size = this.page.viewportSize();
+        return size ? { width: size.width, height: size.height } : { width, height };
+    }
+
     onNavigate(cb: () => void): void {
         this.page.on('framenavigated', (frame) => {
             if (frame === this.page.mainFrame()) {
@@ -143,3 +188,6 @@ export class CamoufoxPageDriver implements PageDriver {
         this.page.on('close', cb)
     }
 }
+
+
+const MOUSE_BUTTONS = ['left', 'middle', 'right'] as const;
