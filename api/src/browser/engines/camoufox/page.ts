@@ -10,13 +10,14 @@ import {
     modifierBit,
 } from "../../input.ts";
 
+const SCREENCAST_INTERVAL_MS = 100;
+
 export class CamoufoxPageDriver implements PageDriver {
     private readonly page: Page;
     private lastFrame: string | null = null;
     private screencastSubscribers = 0;
-    private screencastStartPromise: Promise<void> | null = null;
-    /** Frame size the running screencast was started with */
-    private screencastSize: { width: number; height: number } | null = null;
+    private screencastTimer: ReturnType<typeof setTimeout> | null = null;
+    private screencastCapturing = false;
     /** Modifier keys currently held down via dispatchInput (MOD_* bitmask) */
     private heldModifiers = 0;
     /** Mouse buttons currently held down via dispatchInput */
@@ -41,6 +42,7 @@ export class CamoufoxPageDriver implements PageDriver {
         return
     }
     async close(): Promise<void> {
+        this.stopCaptureLoop();
         await this.page.close()
         return
     }
@@ -95,49 +97,60 @@ export class CamoufoxPageDriver implements PageDriver {
             { x: left, y: top },
         );
     }
-    private startCapture(): Promise<void> {
-        const size = this.page.viewportSize() ?? { width: 1920, height: 1080 };
-        this.screencastSize = size;
-
-        const promise: Promise<void> = (async () => {
-            await this.page.screencast.start({
-                size,
+    /**
+     * Camoufox's native `page.screencast` captures from document `(0, 0)` without
+     * applying scroll offsets (leaving normal content frozen while `position: fixed`
+     * headers drift down by `scrollY`). Poll `page.screenshot()` instead, which
+     * passes the scrolled viewport clip and renders accurately.
+     */
+    private async captureFrame(): Promise<void> {
+        if (this.screencastCapturing || this.page.isClosed()) return;
+        this.screencastCapturing = true;
+        try {
+            const buf = await this.page.screenshot({
+                type: 'jpeg',
                 quality: 70,
-                onFrame: ({ data }) => {
-                    this.lastFrame = data.toString('base64');
-                },
+                animations: 'allow',
             });
+            this.lastFrame = buf.toString('base64');
+        } catch {
+            // Ignore transient errors while page is navigating or closing
+        } finally {
+            this.screencastCapturing = false;
+        }
+    }
 
-            if (!this.lastFrame && !this.page.isClosed()) {
-                const buf = await this.page.screenshot({ type: 'jpeg', quality: 70 }).catch(() => null);
-                if (buf && !this.lastFrame) {
-                    this.lastFrame = buf.toString('base64');
-                }
-            }
-        })().catch((err) => {
-            if (this.screencastStartPromise === promise) {
-                this.screencastStartPromise = null;
-                this.screencastSize = null;
-            }
-            throw err;
-        });
-        return promise;
+    private scheduleNextFrame(): void {
+        if (this.screencastSubscribers === 0 || this.page.isClosed() || this.screencastTimer) {
+            return;
+        }
+        this.screencastTimer = setTimeout(() => {
+            this.screencastTimer = null;
+            void this.captureFrame().finally(() => {
+                this.scheduleNextFrame();
+            });
+        }, SCREENCAST_INTERVAL_MS);
+    }
+
+    private stopCaptureLoop(): void {
+        if (this.screencastTimer) {
+            clearTimeout(this.screencastTimer);
+            this.screencastTimer = null;
+        }
     }
 
     async startScreencast(): Promise<FrameStream> {
         await this.page.bringToFront().catch(() => { });
 
+        const wasIdle = this.screencastSubscribers === 0;
         this.screencastSubscribers++;
 
-        if (!this.screencastStartPromise) {
-            this.screencastStartPromise = this.startCapture();
+        if (!this.lastFrame) {
+            await this.captureFrame();
         }
 
-        try {
-            await this.screencastStartPromise;
-        } catch (err) {
-            this.screencastSubscribers = Math.max(0, this.screencastSubscribers - 1);
-            throw err;
+        if (wasIdle && this.screencastSubscribers > 0) {
+            this.scheduleNextFrame();
         }
 
         let stopped = false;
@@ -148,9 +161,7 @@ export class CamoufoxPageDriver implements PageDriver {
                 stopped = true;
                 this.screencastSubscribers = Math.max(0, this.screencastSubscribers - 1);
                 if (this.screencastSubscribers === 0) {
-                    this.screencastStartPromise = null;
-                    this.screencastSize = null;
-                    await this.page.screencast.stop().catch(() => { });
+                    this.stopCaptureLoop();
                 }
             },
         };
@@ -257,31 +268,13 @@ export class CamoufoxPageDriver implements PageDriver {
 
         if (current?.width !== next.width || current?.height !== next.height) {
             await this.page.setViewportSize(next);
-            await this.restartScreencastIfSizeChanged();
+            if (this.screencastSubscribers > 0) {
+                void this.captureFrame();
+            }
         }
 
         const size = this.page.viewportSize();
         return size ? { width: size.width, height: size.height } : next;
-    }
-
-    /** Playwright screencast has a fixed frame size, so restart it after a viewport change. */
-    private async restartScreencastIfSizeChanged(): Promise<void> {
-        const running = this.screencastStartPromise;
-        if (!running || this.screencastSubscribers === 0) return;
-
-        await running.catch(() => { });
-        const size = this.page.viewportSize();
-        if (
-            !size ||
-            this.screencastStartPromise !== running || // stopped or restarted meanwhile
-            (size.width === this.screencastSize?.width && size.height === this.screencastSize?.height)
-        ) {
-            return;
-        }
-
-        await this.page.screencast.stop().catch(() => { });
-        this.screencastStartPromise = this.startCapture();
-        await this.screencastStartPromise.catch(() => { });
     }
 
     onNavigate(cb: () => void): void {
