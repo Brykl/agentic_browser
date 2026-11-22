@@ -3,6 +3,7 @@ export interface BrowserLaunchConfig {
     proxy?: { server: string; username?: string; password?: string };
     viewport?: { width: number; height: number };
     engine?: string;
+    humanize?: boolean;
 }
 
 export type FrameListener = (frame: Buffer) => void;

@@ -18,6 +18,7 @@ import { path } from "ghost-cursor";
 
 export class PuppeteerPageDriver implements PageDriver {
     private readonly page: Page;
+    private readonly humanize: boolean;
     private refMap = new Map<string, number>();
     /** Long-lived CDP session for UI input, created on first dispatchInput */
     private inputSession: Promise<CDPSession> | null = null;
@@ -26,8 +27,9 @@ export class PuppeteerPageDriver implements PageDriver {
     /** Last mouse position sent by the UI, used to release held buttons */
     private lastMouse = { x: 0, y: 0 };
 
-    constructor(page: Page) {
+    constructor(page: Page, humanize = false) {
         this.page = page;
+        this.humanize = humanize;
         this.page.on('framenavigated', (frame) => {
             if (frame === this.page.mainFrame()) {
                 this.refMap.clear();

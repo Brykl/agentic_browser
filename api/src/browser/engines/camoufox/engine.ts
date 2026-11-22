@@ -5,9 +5,11 @@ import type { Browser, Page } from "playwright-core";
 
 class CamoufoxBrowserDriver implements BrowserDriver {
     private readonly browser: Browser;
+    private readonly humanize: boolean;
 
-    constructor(browser: Browser) {
+    constructor(browser: Browser, humanize = false) {
         this.browser = browser;
+        this.humanize = humanize;
     }
 
     async newPage(viewport: { width: number; height: number } = { width: 1920, height: 1080 }): Promise<PageDriver> {
@@ -16,7 +18,7 @@ class CamoufoxBrowserDriver implements BrowserDriver {
             viewport: viewport
         })
 
-        return new CamoufoxPageDriver(page)
+        return new CamoufoxPageDriver(page, this.humanize)
     }
 
     async close(): Promise<void> {
@@ -36,12 +38,13 @@ export class CamoufoxEngine implements BrowserEngine {
     readonly name = 'camoufox'
 
     async launch(config: BrowserLaunchConfig): Promise<BrowserDriver> {
+        const humanize = config.humanize ?? false;
         const options: NewBrowserOptions = {
-            headless: config.headless ?? true
+            headless: config.headless ?? true,
         }
 
         const browser: Browser = await Camoufox(options)
 
-        return new CamoufoxBrowserDriver(browser)
+        return new CamoufoxBrowserDriver(browser, humanize)
     }
 }

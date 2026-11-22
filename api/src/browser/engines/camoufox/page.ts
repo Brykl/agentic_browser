@@ -13,6 +13,7 @@ import {
     modifierBit,
 } from "../../input.ts";
 import { nextScreenshotPath } from "../../screenshot.ts";
+import { humanPath, pointInside, rand, sleep, visiblePart } from "../../human.ts";
 
 /** Target frame budget while the page is actively changing (~25 FPS). */
 const ACTIVE_FRAME_MS = 40;
@@ -22,6 +23,7 @@ const IDLE_THRESHOLD = 4;
 
 export class CamoufoxPageDriver implements PageDriver {
     private readonly page: Page;
+    private readonly humanize: boolean;
     private lastFrame: Buffer | null = null;
     private readonly frameListeners = new Set<FrameListener>();
     private screencastSubscribers = 0;
@@ -36,8 +38,9 @@ export class CamoufoxPageDriver implements PageDriver {
     /** Last mouse coordinates dispatched via Playwright, used to skip redundant moves */
     private lastMouse: { x: number; y: number } | null = null;
 
-    constructor(page: Page) {
+    constructor(page: Page, humanize = false) {
         this.page = page;
+        this.humanize = humanize;
     }
 
     url(): string {
@@ -69,17 +72,35 @@ export class CamoufoxPageDriver implements PageDriver {
     async click(ref: string): Promise<{ clicked: true; ref: string; x?: number; y?: number }> {
         await this.page.bringToFront().catch(() => { });
         const locator = this.page.locator(`aria-ref=${ref}`);
-        await locator.scrollIntoViewIfNeeded();
-        const box = await locator.boundingBox();
-        await locator.click();
 
-        return {
-            clicked: true,
-            ref,
-            x: box ? box.x + box.width / 2 : undefined,
-            y: box ? box.y + box.height / 2 : undefined,
-        };
+        if (!this.humanize) {
+            await locator.scrollIntoViewIfNeeded();
+            const box = await locator.boundingBox();
+            await locator.click();
+            return { clicked: true, ref, x: box ? box.x + box.width / 2 : undefined, y: box ? box.y + box.height / 2 : undefined };
+        }
+
+        await locator.click({ trial: true });
+
+        const box = await locator.boundingBox();
+        if (!box) throw new Error(`Element [${ref}] is hidden or has no layout box.`);
+        const vp = this.page.viewportSize() ?? { width: 1280, height: 720 };
+        const target = pointInside(visiblePart(box, vp));
+
+        const from = this.lastMouse ?? { x: rand(0, vp.width), y: rand(0, vp.height) };
+        for (const p of humanPath(from, target)) {
+            if (p.dt) await sleep(p.dt);
+            await this.moveMouseIfNeeded(p.x, p.y);
+        }
+
+        await sleep(rand(40, 160));
+        await this.page.mouse.down();
+        await sleep(rand(50, 130));
+        await this.page.mouse.up();
+
+        return { clicked: true, ref, x: target.x, y: target.y };
     }
+
     async fill(ref: string, value: string): Promise<{ filled: true; ref: string; value: string }> {
         await this.click(ref);
 
@@ -87,8 +108,13 @@ export class CamoufoxPageDriver implements PageDriver {
         await this.page.keyboard.press('Backspace');
 
         if (value.length > 0) {
-            const delay = randomInt(100, 500);
-            await this.page.keyboard.type(value, { delay });
+            const chars = [...value];
+            for (let i = 0; i < chars.length; i++) {
+                await this.page.keyboard.type(chars[i]!, { delay: randomInt(30, 100) });
+                if (i < chars.length - 1) {
+                    await sleep(randomInt(70, 400));
+                }
+            }
         }
 
         return { filled: true, ref, value };

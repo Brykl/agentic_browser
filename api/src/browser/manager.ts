@@ -8,6 +8,7 @@ interface BrowserSession {
     pages: Map<string, PageDriver>;
     ownerId: string;
     lastUsed: number;
+    humanize: boolean;
 }
 
 export interface CreatePageParams {
@@ -18,6 +19,7 @@ export interface CreatePageParams {
 export interface BrowserSummary {
     id: string;
     engine: string;
+    humanize: boolean;
     ownerId: string;
     lastUsed: number;
     pageIds: string[];
@@ -59,8 +61,9 @@ export class BrowserManager {
             throw new Error(`Unknown browser engine: ${engineName}`);
         }
 
+        const humanize = config.humanize ?? true;
         const browserId = customBrowserId ?? randomUUID();
-        const browser = await engine.launch(config);
+        const browser = await engine.launch({ ...config, humanize });
 
         this.browsers.set(browserId, {
             browser,
@@ -68,6 +71,7 @@ export class BrowserManager {
             pages: new Map<string, PageDriver>(),
             ownerId,
             lastUsed: Date.now(),
+            humanize,
         });
 
         browser.onDisconnected(() => {
@@ -130,6 +134,7 @@ export class BrowserManager {
         return Array.from(this.browsers.entries(), ([id, session]) => ({
             id,
             engine: session.engine,
+            humanize: session.humanize,
             ownerId: session.ownerId,
             lastUsed: session.lastUsed,
             pageIds: [...session.pages.keys()],

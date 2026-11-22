@@ -5,9 +5,11 @@ import { PuppeteerPageDriver } from "./page.ts";
 
 class PuppeteerBrowserDriver implements BrowserDriver {
     private readonly browser: Browser;
+    private readonly humanize: boolean;
 
-    constructor(browser: Browser) {
+    constructor(browser: Browser, humanize = false) {
         this.browser = browser;
+        this.humanize = humanize;
     }
 
     async newPage(viewport: { width: number; height: number } = { width: 1920, height: 1080 }): Promise<PageDriver> {
@@ -20,7 +22,7 @@ class PuppeteerBrowserDriver implements BrowserDriver {
 
         await page.goto("https://google.com")
 
-        return new PuppeteerPageDriver(page)
+        return new PuppeteerPageDriver(page, this.humanize)
     }
 
     async close(): Promise<void> {
@@ -40,10 +42,11 @@ export class PuppeteerEngine implements BrowserEngine {
     readonly name = 'puppeteer'
 
     async launch(config: BrowserLaunchConfig): Promise<BrowserDriver> {
+        const humanize = config.humanize ?? false;
         const options: LaunchOptions = {
             headless: config.headless ?? true
         }
         const browser = await puppeteer.launch(options)
-        return new PuppeteerBrowserDriver(browser)
+        return new PuppeteerBrowserDriver(browser, humanize)
     }
 }
