@@ -4,6 +4,9 @@ import type { Page } from "playwright-core";
 import { compactAriaSnapshot } from "./aria-snapshot.ts";
 import {
     IGNORED_KEYS,
+    MOD_ALT,
+    MOD_CTRL,
+    MOD_META,
     MODIFIER_KEYS,
     MOUSE_BUTTONS,
     clampViewport,
@@ -237,13 +240,22 @@ export class CamoufoxPageDriver implements PageDriver {
         }
     }
 
-    private async pressKey(kind: 'down' | 'up', key: string, code: string): Promise<void> {
+    private async pressKey(kind: 'down' | 'up', key: string, code: string, mods: number): Promise<void> {
         const keyboard = this.page.keyboard;
         const send = (k: string) => (kind === 'down' ? keyboard.down(k) : keyboard.up(k));
         try {
             await send(key);
         } catch {
-            // Key name unknown to Playwright: fall back to the physical key code (KeyA, Digit1...)
+            // Playwright's keyboard.down/up only know US layout keys.
+            // For printable non-US characters (e.g. Cyrillic) without shortcut modifiers,
+            // insert the character directly instead of falling back to the US physical key code.
+            const isShortcut = (mods & (MOD_ALT | MOD_CTRL | MOD_META)) !== 0;
+            if (!isShortcut && key.length === 1) {
+                if (kind === 'down') {
+                    await keyboard.insertText(key).catch(() => { });
+                }
+                return;
+            }
             if (code && code !== key) {
                 await send(code).catch(() => { });
             }
@@ -297,7 +309,7 @@ export class CamoufoxPageDriver implements PageDriver {
                 }
 
                 await this.syncModifiers(msg.mods);
-                await this.pressKey(msg.kind, msg.key, msg.code);
+                await this.pressKey(msg.kind, msg.key, msg.code, msg.mods);
                 break;
             }
             case 'text':
