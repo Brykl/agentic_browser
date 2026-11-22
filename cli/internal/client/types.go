@@ -3,6 +3,7 @@ package client
 // BrowserInfo represents a browser session returned by GET /api/v1/browsers.
 type BrowserInfo struct {
 	ID       string   `json:"id"`
+	Engine   string   `json:"engine,omitempty"`
 	OwnerID  string   `json:"ownerId"`
 	LastUsed int64    `json:"lastUsed"`
 	PageIDs  []string `json:"pageIds"`
@@ -17,6 +18,7 @@ type ListBrowsersResponse struct {
 type CreateBrowserRequest struct {
 	OwnerID  string `json:"ownerId"`
 	Headless *bool  `json:"headless,omitempty"`
+	Engine   string `json:"engine,omitempty"`
 }
 
 // CreateBrowserResponse is the response from POST /api/v1/browsers.

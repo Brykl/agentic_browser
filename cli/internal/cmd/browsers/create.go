@@ -14,6 +14,7 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 	var (
 		ownerID  string
 		headless bool
+		engine   string
 	)
 
 	cmd := &cobra.Command{
@@ -24,6 +25,7 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 			res, err := opts.NewClient().CreateBrowser(cmd.Context(), client.CreateBrowserRequest{
 				OwnerID:  ownerID,
 				Headless: &headless,
+				Engine:   engine,
 			})
 			if err != nil {
 				return err
@@ -45,6 +47,7 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 
 	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Owner identifier (required)")
 	cmd.Flags().BoolVar(&headless, "headless", true, "Run browser in headless mode")
+	cmd.Flags().StringVar(&engine, "engine", "", "Browser engine (e.g. puppeteer, camoufox)")
 	_ = cmd.MarkFlagRequired("owner-id")
 
 	return cmd

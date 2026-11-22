@@ -40,18 +40,22 @@ func newListCmd(opts *config.Options) *cobra.Command {
 			}
 
 			tw := output.NewTabWriter(out)
-			fmt.Fprintln(tw, "ACTIVE\tID\tOWNER\tPAGES\tLAST USED")
+			fmt.Fprintln(tw, "ACTIVE\tID\tENGINE\tOWNER\tPAGES\tLAST USED")
 			for _, b := range res.Browsers {
 				marker := " "
 				if b.ID == activeBrowserID {
 					marker = "*"
+				}
+				engine := b.Engine
+				if engine == "" {
+					engine = "-"
 				}
 				lastUsed := time.UnixMilli(b.LastUsed).Format(time.RFC3339)
 				pages := "-"
 				if len(b.PageIDs) > 0 {
 					pages = strings.Join(b.PageIDs, ",")
 				}
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", marker, b.ID, b.OwnerID, pages, lastUsed)
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", marker, b.ID, engine, b.OwnerID, pages, lastUsed)
 			}
 			return tw.Flush()
 		},

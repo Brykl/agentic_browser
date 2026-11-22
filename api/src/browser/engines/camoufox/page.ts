@@ -9,19 +9,22 @@ export class CamoufoxPageDriver implements PageDriver {
     }
 
     url(): string {
-        throw new Error("Not implemented");
+        return this.page.url()
     }
     async title(): Promise<string> {
-        throw new Error("Not implemented");
+        return this.page.title()
     }
     async goto(url: string): Promise<void> {
-        throw new Error("Not implemented");
+        await this.page.goto(url)
+        return
     }
     async reload(): Promise<void> {
-        throw new Error("Not implemented");
+        await this.page.reload()
+        return
     }
     async close(): Promise<void> {
-        throw new Error("Not implemented");
+        await this.page.close()
+        return
     }
     async snapshot(): Promise<string> {
         throw new Error("Not implemented");

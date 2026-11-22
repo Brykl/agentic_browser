@@ -17,7 +17,7 @@ func TestClientBrowsersAndPages(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/browsers":
 			_ = json.NewEncoder(w).Encode(client.ListBrowsersResponse{
 				Browsers: []client.BrowserInfo{
-					{ID: "b1", OwnerID: "u1", LastUsed: 1000, PageIDs: []string{"p1"}},
+					{ID: "b1", Engine: "puppeteer", OwnerID: "u1", LastUsed: 1000, PageIDs: []string{"p1"}},
 				},
 			})
 
@@ -25,6 +25,9 @@ func TestClientBrowsersAndPages(t *testing.T) {
 			var body client.CreateBrowserRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatalf("decode create browser: %v", err)
+			}
+			if body.Engine != "camoufox" {
+				t.Fatalf("expected engine=camoufox, got %q", body.Engine)
 			}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(client.CreateBrowserResponse{BrowserID: "b2"})
@@ -145,7 +148,7 @@ func TestClientBrowsersAndPages(t *testing.T) {
 	}
 
 	headless := true
-	createBrowserRes, err := c.CreateBrowser(ctx, client.CreateBrowserRequest{OwnerID: "u1", Headless: &headless})
+	createBrowserRes, err := c.CreateBrowser(ctx, client.CreateBrowserRequest{OwnerID: "u1", Headless: &headless, Engine: "camoufox"})
 	if err != nil || createBrowserRes.BrowserID != "b2" {
 		t.Fatalf("CreateBrowser unexpected: res=%+v err=%v", createBrowserRes, err)
 	}
