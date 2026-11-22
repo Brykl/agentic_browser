@@ -150,7 +150,7 @@ export class PuppeteerPageDriver implements PageDriver {
         await this.page.bringToFront().catch(() => { });
         const cdp = await this.page.createCDPSession();
 
-        let lastFrame: string | null = null;
+        let lastFrame: Buffer | null = null;
         let lastFrameAt = 0;
         let capturing = false;
         let stopped = false;
@@ -165,7 +165,7 @@ export class PuppeteerPageDriver implements PageDriver {
                     quality: 70,
                 });
                 if (data) {
-                    lastFrame = data;
+                    lastFrame = Buffer.from(data, 'base64');
                     lastFrameAt = Date.now();
                 }
             } catch {
@@ -176,7 +176,7 @@ export class PuppeteerPageDriver implements PageDriver {
         };
 
         cdp.on('Page.screencastFrame', async ({ data, sessionId }) => {
-            lastFrame = data;
+            lastFrame = Buffer.from(data, 'base64');
             lastFrameAt = Date.now();
 
             void cdp.send('Page.screencastFrameAck', {

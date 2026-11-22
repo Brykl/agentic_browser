@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppBar, type BrowserSummary, type PageSummary } from "./components/AppBar";
 import Box from "@mui/material/Box";
-import { LiveViewBrowser } from "./components/LiveView";
+import { LiveViewBrowser, type LiveViewHandle } from "./components/LiveView";
 import type { ClientMessage, Viewport } from "./input-protocol";
 
-type WsServerMessage =
-  | { type: "base64"; img: string | null }
-  | { type: "viewport"; width: number; height: number };
+type WsServerMessage = { type: "viewport"; width: number; height: number };
 
 function App() {
   const wsRef = useRef<WebSocket | null>(null);
-  const [frame, setFrame] = useState<string | undefined>();
+  const liveViewRef = useRef<LiveViewHandle>(null);
   const [viewport, setViewport] = useState<Viewport | undefined>();
   const [connected, setConnected] = useState(false);
   const [browsers, setBrowsers] = useState<BrowserSummary[]>([]);
@@ -108,7 +106,7 @@ function App() {
   useEffect(() => {
     if (!currentBrowser || !currentPage) {
       setConnected(false);
-      setFrame(undefined);
+      liveViewRef.current?.clear();
       setViewport(undefined);
       return;
     }
@@ -125,12 +123,13 @@ function App() {
     }).toString();
 
     setConnected(false);
-    setFrame(undefined);
+    liveViewRef.current?.clear();
     setViewport(undefined);
 
     const connect = () => {
       if (disposed) return;
       ws = new WebSocket(`${wsUrl}?${query}`);
+      ws.binaryType = "blob";
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -139,11 +138,15 @@ function App() {
 
       ws.onmessage = (event) => {
         if (disposed) return;
-        const data: WsServerMessage = JSON.parse(event.data);
-        if (data.type === "viewport") {
-          setViewport({ width: data.width, height: data.height });
-        } else if (data.img) {
-          setFrame(data.img);
+        if (typeof event.data === "string") {
+          const data: WsServerMessage = JSON.parse(event.data);
+          if (data.type === "viewport") {
+            setViewport({ width: data.width, height: data.height });
+          }
+          return;
+        }
+        if (event.data instanceof Blob) {
+          liveViewRef.current?.drawFrame(event.data);
         }
       };
 
@@ -284,7 +287,7 @@ function App() {
         }}
       >
         <LiveViewBrowser
-          img={frame}
+          ref={liveViewRef}
           viewport={viewport}
           connected={connected}
           send={send}

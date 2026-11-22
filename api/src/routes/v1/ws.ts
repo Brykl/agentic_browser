@@ -125,10 +125,15 @@ export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { 
             return
         }
 
+        let lastSentFrame: Buffer | null = null
+
         const sendLatestFrame = () => {
+            if (socket.readyState !== socket.OPEN) return
+            if (socket.bufferedAmount > 0) return
             const frame = cast.getFrame()
-            if (!frame) return
-            sendJson({ type: 'base64', img: frame })
+            if (!frame || frame === lastSentFrame) return
+            lastSentFrame = frame
+            socket.send(frame, { binary: true })
         }
 
         sendLatestFrame()

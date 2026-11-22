@@ -6,7 +6,7 @@ export interface BrowserLaunchConfig {
 }
 
 export interface FrameStream {
-    getFrame(): string | null;
+    getFrame(): Buffer | null;
     stop(): Promise<void>;
 }
 

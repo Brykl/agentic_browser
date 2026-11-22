@@ -14,7 +14,7 @@ const SCREENCAST_INTERVAL_MS = 100;
 
 export class CamoufoxPageDriver implements PageDriver {
     private readonly page: Page;
-    private lastFrame: string | null = null;
+    private lastFrame: Buffer | null = null;
     private screencastSubscribers = 0;
     private screencastTimer: ReturnType<typeof setTimeout> | null = null;
     private screencastCapturing = false;
@@ -107,12 +107,11 @@ export class CamoufoxPageDriver implements PageDriver {
         if (this.screencastCapturing || this.page.isClosed()) return;
         this.screencastCapturing = true;
         try {
-            const buf = await this.page.screenshot({
+            this.lastFrame = await this.page.screenshot({
                 type: 'jpeg',
                 quality: 70,
                 animations: 'allow',
             });
-            this.lastFrame = buf.toString('base64');
         } catch {
             // Ignore transient errors while page is navigating or closing
         } finally {

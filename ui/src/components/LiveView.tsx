@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, type Ref } from "react";
 import { modifiers, type SendInput, type Viewport } from "../input-protocol";
 
+export type LiveViewHandle = {
+    drawFrame: (blob: Blob) => void;
+    clear: () => void;
+};
+
 type Props = {
-    img?: string;
+    ref?: Ref<LiveViewHandle>;
     /** Real page viewport reported by the server (CSS px) */
     viewport?: Viewport;
     connected: boolean;
@@ -30,7 +35,7 @@ function toButton(button: number): 0 | 1 | 2 | null {
     return button === 0 || button === 1 || button === 2 ? button : null;
 }
 
-export function LiveViewBrowser({ img, viewport, connected, send }: Props) {
+export function LiveViewBrowser({ ref, viewport, connected, send }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // Latest props for event handlers registered once (wheel, paste, resize)
@@ -43,6 +48,8 @@ export function LiveViewBrowser({ img, viewport, connected, send }: Props) {
 
     /** Last measured size of the view area, re-sent after (re)connect */
     const sizeRef = useRef<Viewport | null>(null);
+    /** Monotonic counter to drop out-of-order or stale decoded frames */
+    const frameSeqRef = useRef(0);
     /** Keys pressed while the view had focus: code -> key */
     const pressedKeysRef = useRef(new Map<string, string>());
     const heldButtonsRef = useRef(new Set<0 | 1 | 2>());
@@ -56,25 +63,37 @@ export function LiveViewBrowser({ img, viewport, connected, send }: Props) {
     }, [send]);
 
     // ---- Frames ---------------------------------------------------------------
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas || !img) return;
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const image = new Image();
-        image.onload = () => {
-            if (canvas.width !== image.naturalWidth) canvas.width = image.naturalWidth;
-            if (canvas.height !== image.naturalHeight) canvas.height = image.naturalHeight;
-            ctx.drawImage(image, 0, 0);
-        };
-        image.src = `data:image/jpeg;base64,${img}`;
-
-        return () => {
-            image.onload = null;
-        };
-    }, [img]);
+    useImperativeHandle(ref, () => ({
+        drawFrame(blob: Blob) {
+            const seq = ++frameSeqRef.current;
+            void createImageBitmap(blob)
+                .then((bitmap) => {
+                    const canvas = canvasRef.current;
+                    if (seq !== frameSeqRef.current || !canvas) {
+                        bitmap.close();
+                        return;
+                    }
+                    const ctx = canvas.getContext("2d");
+                    if (!ctx) {
+                        bitmap.close();
+                        return;
+                    }
+                    if (canvas.width !== bitmap.width) canvas.width = bitmap.width;
+                    if (canvas.height !== bitmap.height) canvas.height = bitmap.height;
+                    ctx.drawImage(bitmap, 0, 0);
+                    bitmap.close();
+                })
+                .catch(() => { });
+        },
+        clear() {
+            frameSeqRef.current++;
+            const canvas = canvasRef.current;
+            const ctx = canvas?.getContext("2d");
+            if (canvas && ctx) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        },
+    }), []);
 
     // ---- Coordinates ------------------------------------------------------------
     /** Client (UI) coordinates -> page viewport CSS px, accounting for `object-fit: contain` letterboxing */
