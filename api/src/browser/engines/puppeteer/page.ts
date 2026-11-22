@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto';
 import type { CDPSession, Page } from 'puppeteer';
 import type { Protocol } from 'puppeteer-core';
-import type { FrameStream, PageDriver, InputEvent } from '../../types.ts';
+import type { FrameListener, FrameStream, PageDriver, InputEvent } from '../../types.ts';
 import {
     IGNORED_KEYS,
     MOD_CTRL,
@@ -154,6 +154,15 @@ export class PuppeteerPageDriver implements PageDriver {
         let lastFrameAt = 0;
         let capturing = false;
         let stopped = false;
+        const listeners = new Set<FrameListener>();
+
+        const emitFrame = (buf: Buffer) => {
+            lastFrame = buf;
+            lastFrameAt = Date.now();
+            for (const cb of listeners) {
+                cb(buf);
+            }
+        };
 
         const captureFallback = async () => {
             if (stopped || capturing || this.page.isClosed()) return;
@@ -165,8 +174,7 @@ export class PuppeteerPageDriver implements PageDriver {
                     quality: 70,
                 });
                 if (data) {
-                    lastFrame = Buffer.from(data, 'base64');
-                    lastFrameAt = Date.now();
+                    emitFrame(Buffer.from(data, 'base64'));
                 }
             } catch {
                 // Ignore errors while page is navigating or closing
@@ -176,8 +184,7 @@ export class PuppeteerPageDriver implements PageDriver {
         };
 
         cdp.on('Page.screencastFrame', async ({ data, sessionId }) => {
-            lastFrame = Buffer.from(data, 'base64');
-            lastFrameAt = Date.now();
+            emitFrame(Buffer.from(data, 'base64'));
 
             void cdp.send('Page.screencastFrameAck', {
                 sessionId,
@@ -202,8 +209,16 @@ export class PuppeteerPageDriver implements PageDriver {
 
         return {
             getFrame: () => lastFrame,
+            onFrame: (cb) => {
+                if (stopped) return () => { };
+                listeners.add(cb);
+                return () => {
+                    listeners.delete(cb);
+                };
+            },
             stop: async () => {
                 stopped = true;
+                listeners.clear();
                 clearInterval(fallbackInterval);
                 await cdp.detach().catch(() => { });
             },

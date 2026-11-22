@@ -96,10 +96,10 @@ export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { 
 
         // ---- Screencast --------------------------------------------------------
         let cast: FrameStream | undefined
-        let interval: ReturnType<typeof setInterval> | undefined
+        let unsubscribeFrames: (() => void) | undefined
 
         socket.on('close', () => {
-            if (interval) clearInterval(interval)
+            unsubscribeFrames?.()
             void cast?.stop().catch(() => { })
             // Don't leave buttons/modifiers stuck if the UI disconnected mid-drag
             tail = null
@@ -127,17 +127,17 @@ export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { 
 
         let lastSentFrame: Buffer | null = null
 
-        const sendLatestFrame = () => {
+        const sendFrame = (frame: Buffer) => {
             if (socket.readyState !== socket.OPEN) return
             if (socket.bufferedAmount > 0) return
-            const frame = cast.getFrame()
-            if (!frame || frame === lastSentFrame) return
+            if (frame === lastSentFrame) return
             lastSentFrame = frame
             socket.send(frame, { binary: true })
         }
 
-        sendLatestFrame()
-        interval = setInterval(sendLatestFrame, 100)
+        unsubscribeFrames = cast.onFrame(sendFrame)
+        const initialFrame = cast.getFrame()
+        if (initialFrame) sendFrame(initialFrame)
     })
 
     fastify.addHook('onClose', () => {

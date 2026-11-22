@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import type { FrameStream, PageDriver, InputEvent } from "../../types.ts";
+import type { FrameListener, FrameStream, PageDriver, InputEvent } from "../../types.ts";
 import type { Page } from "playwright-core";
 import { compactAriaSnapshot } from "./aria-snapshot.ts";
 import {
@@ -10,18 +10,27 @@ import {
     modifierBit,
 } from "../../input.ts";
 
-const SCREENCAST_INTERVAL_MS = 100;
+/** Target frame budget while the page is actively changing (~25 FPS). */
+const ACTIVE_FRAME_MS = 40;
+/** Slower poll interval once the page has been static for several frames. */
+const IDLE_FRAME_MS = 160;
+const IDLE_THRESHOLD = 4;
 
 export class CamoufoxPageDriver implements PageDriver {
     private readonly page: Page;
     private lastFrame: Buffer | null = null;
+    private readonly frameListeners = new Set<FrameListener>();
     private screencastSubscribers = 0;
     private screencastTimer: ReturnType<typeof setTimeout> | null = null;
     private screencastCapturing = false;
+    private captureRequested = false;
+    private unchangedFrames = 0;
     /** Modifier keys currently held down via dispatchInput (MOD_* bitmask) */
     private heldModifiers = 0;
     /** Mouse buttons currently held down via dispatchInput */
     private readonly heldButtons = new Set<(typeof MOUSE_BUTTONS)[number]>();
+    /** Last mouse coordinates dispatched via Playwright, used to skip redundant moves */
+    private lastMouse: { x: number; y: number } | null = null;
 
     constructor(page: Page) {
         this.page = page;
@@ -104,31 +113,64 @@ export class CamoufoxPageDriver implements PageDriver {
      * passes the scrolled viewport clip and renders accurately.
      */
     private async captureFrame(): Promise<void> {
-        if (this.screencastCapturing || this.page.isClosed()) return;
+        if (this.page.isClosed()) return;
+        if (this.screencastCapturing) {
+            this.captureRequested = true;
+            return;
+        }
         this.screencastCapturing = true;
+        const startedAt = Date.now();
         try {
-            this.lastFrame = await this.page.screenshot({
+            const buf = await this.page.screenshot({
                 type: 'jpeg',
                 quality: 70,
                 animations: 'allow',
             });
+            const changed = !this.lastFrame || !buf.equals(this.lastFrame);
+            if (changed) {
+                this.lastFrame = buf;
+                this.unchangedFrames = 0;
+                for (const cb of this.frameListeners) {
+                    cb(buf);
+                }
+            } else {
+                this.unchangedFrames++;
+            }
         } catch {
             // Ignore transient errors while page is navigating or closing
         } finally {
             this.screencastCapturing = false;
+            const elapsed = Date.now() - startedAt;
+            if (this.captureRequested && this.screencastSubscribers > 0 && !this.page.isClosed()) {
+                this.captureRequested = false;
+                this.scheduleNextFrame(ACTIVE_FRAME_MS);
+            } else {
+                this.scheduleNextFrame(elapsed);
+            }
         }
     }
 
-    private scheduleNextFrame(): void {
+    private scheduleNextFrame(elapsedMs = 0): void {
         if (this.screencastSubscribers === 0 || this.page.isClosed() || this.screencastTimer) {
             return;
         }
+        const targetMs = this.unchangedFrames >= IDLE_THRESHOLD ? IDLE_FRAME_MS : ACTIVE_FRAME_MS;
+        const delay = Math.max(0, targetMs - elapsedMs);
         this.screencastTimer = setTimeout(() => {
             this.screencastTimer = null;
-            void this.captureFrame().finally(() => {
-                this.scheduleNextFrame();
-            });
-        }, SCREENCAST_INTERVAL_MS);
+            void this.captureFrame();
+        }, delay);
+    }
+
+    private triggerImmediateCapture(): void {
+        if (this.screencastSubscribers === 0 || this.page.isClosed()) return;
+        this.unchangedFrames = 0;
+        if (this.screencastCapturing) {
+            this.captureRequested = true;
+            return;
+        }
+        this.stopCaptureLoop();
+        void this.captureFrame();
     }
 
     private stopCaptureLoop(): void {
@@ -136,6 +178,7 @@ export class CamoufoxPageDriver implements PageDriver {
             clearTimeout(this.screencastTimer);
             this.screencastTimer = null;
         }
+        this.captureRequested = false;
     }
 
     async startScreencast(): Promise<FrameStream> {
@@ -143,21 +186,32 @@ export class CamoufoxPageDriver implements PageDriver {
 
         const wasIdle = this.screencastSubscribers === 0;
         this.screencastSubscribers++;
+        this.unchangedFrames = 0;
 
-        if (!this.lastFrame) {
+        if (wasIdle || !this.lastFrame) {
             await this.captureFrame();
         }
 
-        if (wasIdle && this.screencastSubscribers > 0) {
-            this.scheduleNextFrame();
-        }
-
         let stopped = false;
+        const streamListeners = new Set<FrameListener>();
         return {
             getFrame: () => this.lastFrame,
+            onFrame: (cb) => {
+                if (stopped) return () => { };
+                streamListeners.add(cb);
+                this.frameListeners.add(cb);
+                return () => {
+                    streamListeners.delete(cb);
+                    this.frameListeners.delete(cb);
+                };
+            },
             stop: async () => {
                 if (stopped) return;
                 stopped = true;
+                for (const cb of streamListeners) {
+                    this.frameListeners.delete(cb);
+                }
+                streamListeners.clear();
                 this.screencastSubscribers = Math.max(0, this.screencastSubscribers - 1);
                 if (this.screencastSubscribers === 0) {
                     this.stopCaptureLoop();
@@ -196,6 +250,12 @@ export class CamoufoxPageDriver implements PageDriver {
         }
     }
 
+    private async moveMouseIfNeeded(x: number, y: number): Promise<void> {
+        if (this.lastMouse?.x === x && this.lastMouse.y === y) return;
+        await this.page.mouse.move(x, y);
+        this.lastMouse = { x, y };
+    }
+
     async dispatchInput(msg: InputEvent): Promise<void> {
         if (this.page.isClosed()) return;
 
@@ -205,7 +265,7 @@ export class CamoufoxPageDriver implements PageDriver {
                 const clickCount = msg.clicks ?? 1;
 
                 await this.syncModifiers(msg.mods);
-                await this.page.mouse.move(msg.x, msg.y);
+                await this.moveMouseIfNeeded(msg.x, msg.y);
                 if (msg.kind === 'down') {
                     this.heldButtons.add(button);
                     await this.page.mouse.down({ button, clickCount });
@@ -216,7 +276,7 @@ export class CamoufoxPageDriver implements PageDriver {
                 break;
             }
             case 'wheel':
-                await this.page.mouse.move(msg.x, msg.y);
+                await this.moveMouseIfNeeded(msg.x, msg.y);
                 await this.page.mouse.wheel(msg.dx, msg.dy);
                 break;
             case 'key': {
@@ -246,6 +306,8 @@ export class CamoufoxPageDriver implements PageDriver {
                 }
                 break;
         }
+
+        this.triggerImmediateCapture();
     }
 
     async releaseInput(): Promise<void> {
@@ -267,9 +329,7 @@ export class CamoufoxPageDriver implements PageDriver {
 
         if (current?.width !== next.width || current?.height !== next.height) {
             await this.page.setViewportSize(next);
-            if (this.screencastSubscribers > 0) {
-                void this.captureFrame();
-            }
+            this.triggerImmediateCapture();
         }
 
         const size = this.page.viewportSize();

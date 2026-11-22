@@ -5,8 +5,11 @@ export interface BrowserLaunchConfig {
     engine?: string;
 }
 
+export type FrameListener = (frame: Buffer) => void;
+
 export interface FrameStream {
     getFrame(): Buffer | null;
+    onFrame(cb: FrameListener): () => void;
     stop(): Promise<void>;
 }
 
