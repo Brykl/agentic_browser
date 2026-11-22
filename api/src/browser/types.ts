@@ -25,6 +25,8 @@ export interface PageDriver {
     scrollBy(left: number, top: number): Promise<{ x: number; y: number }>;
     startScreencast(): Promise<FrameStream>;
     dispatchInput(msg: InputEvent): Promise<void>;
+    /** Release mouse buttons and modifier keys still held via dispatchInput (e.g. UI disconnected mid-drag). */
+    releaseInput(): Promise<void>;
     setViewport(width: number, height: number): Promise<{ width: number; height: number }>;
 
     onNavigate(cb: () => void): void;

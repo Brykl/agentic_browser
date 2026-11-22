@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { BrowserDriver, BrowserEngine, BrowserLaunchConfig, FrameStream, PageDriver } from "./types.ts";
+import type { BrowserDriver, BrowserEngine, BrowserLaunchConfig, FrameStream, PageDriver, InputEvent } from "./types.ts";
 
 
 interface BrowserSession {
@@ -216,6 +216,19 @@ export class BrowserManager {
         if (!page) return false;
         await page.close();
         return true;
+    }
+
+    async dispatchInput(browserId: string, pageId: string, msg: InputEvent) {
+        const page = this.getPageDriver(browserId, pageId);
+        if (!page) return false;
+        await page.dispatchInput(msg);
+        return true;
+    }
+    async releaseInput(browserId: string, pageId: string): Promise<void> {
+        await this.getPageDriver(browserId, pageId)?.releaseInput();
+    }
+    async setViewport(browserId: string, pageId: string, w: number, h: number) {
+        return await this.getPageDriver(browserId, pageId)?.setViewport(w, h);
     }
 
     async closeBrowser(browserId: string): Promise<void> {
