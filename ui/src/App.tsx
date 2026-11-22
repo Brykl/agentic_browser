@@ -1,20 +1,28 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppBar, type BrowserSummary, type PageSummary } from "./components/AppBar";
 import Box from "@mui/material/Box";
 import { LiveViewBrowser } from "./components/LiveView";
+import type { ClientMessage, Viewport } from "./input-protocol";
 
-type WsFrameMessage = {
-  type: string;
-  img: string | null;
-};
+type WsServerMessage =
+  | { type: "base64"; img: string | null }
+  | { type: "viewport"; width: number; height: number };
 
 function App() {
+  const wsRef = useRef<WebSocket | null>(null);
   const [frame, setFrame] = useState<string | undefined>();
+  const [viewport, setViewport] = useState<Viewport | undefined>();
   const [connected, setConnected] = useState(false);
   const [browsers, setBrowsers] = useState<BrowserSummary[]>([]);
   const [pages, setPages] = useState<PageSummary[]>([]);
   const [currentBrowser, setCurrentBrowser] = useState<string | undefined>();
   const [currentPage, setCurrentPage] = useState<string | undefined>();
+
+  const send = useCallback((msg: ClientMessage) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(msg));
+    }
+  }, []);
 
   const fetchBrowsers = useCallback(async (signal?: AbortSignal) => {
     const res = await fetch("/api/v1/browsers", { cache: "no-store", signal });
@@ -101,6 +109,7 @@ function App() {
     if (!currentBrowser || !currentPage) {
       setConnected(false);
       setFrame(undefined);
+      setViewport(undefined);
       return;
     }
 
@@ -117,10 +126,12 @@ function App() {
 
     setConnected(false);
     setFrame(undefined);
+    setViewport(undefined);
 
     const connect = () => {
       if (disposed) return;
       ws = new WebSocket(`${wsUrl}?${query}`);
+      wsRef.current = ws;
 
       ws.onopen = () => {
         if (!disposed) setConnected(true);
@@ -128,14 +139,17 @@ function App() {
 
       ws.onmessage = (event) => {
         if (disposed) return;
-        const data: WsFrameMessage = JSON.parse(event.data);
-        if (data.img) {
+        const data: WsServerMessage = JSON.parse(event.data);
+        if (data.type === "viewport") {
+          setViewport({ width: data.width, height: data.height });
+        } else if (data.img) {
           setFrame(data.img);
         }
       };
 
       ws.onclose = () => {
         if (disposed) return;
+        if (wsRef.current === ws) wsRef.current = null;
         setConnected(false);
         reconnectTimer = setTimeout(connect, 1000);
       };
@@ -146,6 +160,7 @@ function App() {
     return () => {
       disposed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (wsRef.current === ws) wsRef.current = null;
       ws?.close();
     };
   }, [currentBrowser, currentPage]);
@@ -175,7 +190,7 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           browserId: currentBrowser,
-          pageUrl: "https://example.com",
+          pageUrl: "https://google.com",
         }),
       });
 
@@ -268,7 +283,12 @@ function App() {
           bgcolor: "#13131b",
         }}
       >
-        <LiveViewBrowser img={frame} />
+        <LiveViewBrowser
+          img={frame}
+          viewport={viewport}
+          connected={connected}
+          send={send}
+        />
       </Box>
     </Box>
   );
