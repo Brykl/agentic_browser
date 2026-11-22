@@ -97,8 +97,10 @@ export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { 
         // ---- Screencast --------------------------------------------------------
         let cast: FrameStream | undefined
         let unsubscribeFrames: (() => void) | undefined
+        let unsubscribeCursor: (() => void) | undefined
 
         socket.on('close', () => {
+            unsubscribeCursor?.()
             unsubscribeFrames?.()
             void cast?.stop().catch(() => { })
             // Don't leave buttons/modifiers stuck if the UI disconnected mid-drag
@@ -136,6 +138,9 @@ export async function WsRouteV1(fastify: FastifyInstance, { browserManager }: { 
         }
 
         unsubscribeFrames = cast.onFrame(sendFrame)
+        unsubscribeCursor = browserManager.onAgentCursor(browserId, pageId, (event) => {
+            sendJson({ type: 'agent-cursor', ...event })
+        })
         const initialFrame = cast.getFrame()
         if (initialFrame) sendFrame(initialFrame)
     })

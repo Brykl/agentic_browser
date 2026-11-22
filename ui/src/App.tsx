@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppBar, type BrowserSummary, type PageSummary } from "./components/AppBar";
 import Box from "@mui/material/Box";
 import { LiveViewBrowser, type LiveViewHandle } from "./components/LiveView";
-import type { ClientMessage, Viewport } from "./input-protocol";
+import type { AgentCursorEvent, ClientMessage, Viewport } from "./input-protocol";
 
-type WsServerMessage = { type: "viewport"; width: number; height: number };
+type WsServerMessage =
+  | { type: "viewport"; width: number; height: number }
+  | ({ type: "agent-cursor" } & AgentCursorEvent);
 
 function App() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -142,6 +144,8 @@ function App() {
           const data: WsServerMessage = JSON.parse(event.data);
           if (data.type === "viewport") {
             setViewport({ width: data.width, height: data.height });
+          } else if (data.type === "agent-cursor") {
+            liveViewRef.current?.updateAgentCursor(data);
           }
           return;
         }

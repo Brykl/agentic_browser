@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { BrowserDriver, BrowserEngine, BrowserLaunchConfig, FrameStream, PageDriver, InputEvent } from "./types.ts";
+import type { AgentCursorListener, BrowserDriver, BrowserEngine, BrowserLaunchConfig, FrameStream, PageDriver, InputEvent } from "./types.ts";
 
 
 interface BrowserSession {
@@ -250,5 +250,11 @@ export class BrowserManager {
         const page = this.getPageDriver(browserId, pageId);
         if (!page) return undefined;
         return await page.startScreencast();
+    }
+
+    onAgentCursor(browserId: string, pageId: string, cb: AgentCursorListener): (() => void) | undefined {
+        const page = this.getPageDriver(browserId, pageId);
+        if (!page) return undefined;
+        return page.onAgentCursor(cb);
     }
 }

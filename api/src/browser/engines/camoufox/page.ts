@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import type { FrameListener, FrameStream, PageDriver, InputEvent } from "../../types.ts";
+import type { AgentCursorEvent, AgentCursorListener, FrameListener, FrameStream, PageDriver, InputEvent } from "../../types.ts";
 import type { Page } from "playwright-core";
 import { compactAriaSnapshot } from "./aria-snapshot.ts";
 import {
@@ -26,6 +26,7 @@ export class CamoufoxPageDriver implements PageDriver {
     private readonly humanize: boolean;
     private lastFrame: Buffer | null = null;
     private readonly frameListeners = new Set<FrameListener>();
+    private readonly cursorListeners = new Set<AgentCursorListener>();
     private screencastSubscribers = 0;
     private screencastTimer: ReturnType<typeof setTimeout> | null = null;
     private screencastCapturing = false;
@@ -59,6 +60,7 @@ export class CamoufoxPageDriver implements PageDriver {
     }
     async close(): Promise<void> {
         this.stopCaptureLoop();
+        this.cursorListeners.clear();
         await this.page.close()
         return
     }
@@ -76,8 +78,20 @@ export class CamoufoxPageDriver implements PageDriver {
         if (!this.humanize) {
             await locator.scrollIntoViewIfNeeded();
             const box = await locator.boundingBox();
-            await locator.click();
-            return { clicked: true, ref, x: box ? box.x + box.width / 2 : undefined, y: box ? box.y + box.height / 2 : undefined };
+            const x = box ? Math.round(box.x + box.width / 2) : undefined;
+            const y = box ? Math.round(box.y + box.height / 2) : undefined;
+            if (x !== undefined && y !== undefined) {
+                this.emitAgentCursor({ kind: 'move', x, y });
+                this.emitAgentCursor({ kind: 'down', x, y });
+            }
+            try {
+                await locator.click();
+            } finally {
+                if (x !== undefined && y !== undefined) {
+                    this.emitAgentCursor({ kind: 'up', x, y });
+                }
+            }
+            return { clicked: true, ref, x, y };
         }
 
         await locator.click({ trial: true });
@@ -91,12 +105,20 @@ export class CamoufoxPageDriver implements PageDriver {
         for (const p of humanPath(from, target)) {
             if (p.dt) await sleep(p.dt);
             await this.moveMouseIfNeeded(p.x, p.y);
+            this.emitAgentCursor({ kind: 'move', x: p.x, y: p.y });
         }
 
+        const clickX = Math.round(target.x);
+        const clickY = Math.round(target.y);
         await sleep(rand(40, 160));
-        await this.page.mouse.down();
-        await sleep(rand(50, 130));
-        await this.page.mouse.up();
+        this.emitAgentCursor({ kind: 'down', x: clickX, y: clickY });
+        try {
+            await this.page.mouse.down();
+            await sleep(rand(50, 130));
+            await this.page.mouse.up();
+        } finally {
+            this.emitAgentCursor({ kind: 'up', x: clickX, y: clickY });
+        }
 
         return { clicked: true, ref, x: target.x, y: target.y };
     }
@@ -379,6 +401,19 @@ export class CamoufoxPageDriver implements PageDriver {
 
         const size = this.page.viewportSize();
         return size ? { width: size.width, height: size.height } : next;
+    }
+
+    private emitAgentCursor(event: AgentCursorEvent): void {
+        for (const cb of this.cursorListeners) {
+            cb(event);
+        }
+    }
+
+    onAgentCursor(cb: AgentCursorListener): () => void {
+        this.cursorListeners.add(cb);
+        return () => {
+            this.cursorListeners.delete(cb);
+        };
     }
 
     onNavigate(cb: () => void): void {

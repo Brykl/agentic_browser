@@ -3,3 +3,25 @@ body {
   margin: 0;
   padding: 0;
 }
+
+@keyframes agent-cursor-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.25);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.9);
+    opacity: 0;
+  }
+}
+
+.agent-cursor-ripple {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #a78bfa;
+  background: rgba(124, 58, 237, 0.22);
+  pointer-events: none;
+  animation: agent-cursor-ripple 420ms ease-out forwards;
+}

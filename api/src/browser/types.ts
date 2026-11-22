@@ -8,6 +8,14 @@ export interface BrowserLaunchConfig {
 
 export type FrameListener = (frame: Buffer) => void;
 
+export type AgentCursorEvent =
+    | { kind: 'move'; x: number; y: number }
+    | { kind: 'down'; x: number; y: number }
+    | { kind: 'up'; x: number; y: number }
+    | { kind: 'hide' };
+
+export type AgentCursorListener = (event: AgentCursorEvent) => void;
+
 export interface FrameStream {
     getFrame(): Buffer | null;
     onFrame(cb: FrameListener): () => void;
@@ -33,6 +41,7 @@ export interface PageDriver {
     setViewport(width: number, height: number): Promise<{ width: number; height: number }>;
     screenshot(): Promise<string>
 
+    onAgentCursor(cb: AgentCursorListener): () => void;
     onNavigate(cb: () => void): void;
     onClose(cb: () => void): void;
 }

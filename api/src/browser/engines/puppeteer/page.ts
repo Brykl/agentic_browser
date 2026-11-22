@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto';
 import type { CDPSession, Page } from 'puppeteer';
 import type { Protocol } from 'puppeteer-core';
-import type { FrameListener, FrameStream, PageDriver, InputEvent } from '../../types.ts';
+import type { AgentCursorEvent, AgentCursorListener, FrameListener, FrameStream, PageDriver, InputEvent } from '../../types.ts';
 import {
     IGNORED_KEYS,
     MOD_CTRL,
@@ -20,6 +20,7 @@ export class PuppeteerPageDriver implements PageDriver {
     private readonly page: Page;
     private readonly humanize: boolean;
     private refMap = new Map<string, number>();
+    private readonly cursorListeners = new Set<AgentCursorListener>();
     /** Long-lived CDP session for UI input, created on first dispatchInput */
     private inputSession: Promise<CDPSession> | null = null;
     /** Mouse buttons currently held by the UI user (CDP `buttons` bitmask) */
@@ -55,6 +56,7 @@ export class PuppeteerPageDriver implements PageDriver {
     }
 
     async close(): Promise<void> {
+        this.cursorListeners.clear();
         await this.detachInputSession();
         await this.page.close();
     }
@@ -109,8 +111,16 @@ export class PuppeteerPageDriver implements PageDriver {
             }
             const x = (q[0] + q[2] + q[4] + q[6]) / 4;
             const y = (q[1] + q[3] + q[5] + q[7]) / 4;
+            const cx = Math.round(x);
+            const cy = Math.round(y);
 
-            await this.page.mouse.click(x, y);
+            this.emitAgentCursor({ kind: 'move', x: cx, y: cy });
+            this.emitAgentCursor({ kind: 'down', x: cx, y: cy });
+            try {
+                await this.page.mouse.click(x, y);
+            } finally {
+                this.emitAgentCursor({ kind: 'up', x: cx, y: cy });
+            }
             return { clicked: true, ref, x, y };
         } finally {
             await cdp.detach().catch(() => { });
@@ -359,6 +369,19 @@ export class PuppeteerPageDriver implements PageDriver {
         return filePath;
     }
 
+    private emitAgentCursor(event: AgentCursorEvent): void {
+        for (const cb of this.cursorListeners) {
+            cb(event);
+        }
+    }
+
+    onAgentCursor(cb: AgentCursorListener): () => void {
+        this.cursorListeners.add(cb);
+        return () => {
+            this.cursorListeners.delete(cb);
+        };
+    }
+
     onNavigate(cb: () => void): void {
         this.page.on('framenavigated', (frame) => {
             if (frame === this.page.mainFrame()) {
@@ -370,6 +393,7 @@ export class PuppeteerPageDriver implements PageDriver {
     onClose(cb: () => void): void {
         this.page.on('close', () => {
             this.refMap.clear();
+            this.cursorListeners.clear();
             this.inputSession = null;
             this.heldButtons = 0;
             cb();
