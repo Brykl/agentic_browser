@@ -92,6 +92,20 @@ func (o *Options) SetActivePage(browserID, pageID string) error {
 	return o.SaveState(st)
 }
 
+// ClearActiveBrowser clears the active browser ID (and active page ID) if it matches browserID (or unconditionally if browserID is empty).
+func (o *Options) ClearActiveBrowser(browserID string) error {
+	st, err := o.LoadState()
+	if err != nil {
+		return nil
+	}
+	if browserID == "" || st.BrowserID == browserID {
+		st.BrowserID = ""
+		st.PageID = ""
+		return o.SaveState(st)
+	}
+	return nil
+}
+
 // ClearActivePage clears the active page ID if it matches pageID (or unconditionally if pageID is empty).
 func (o *Options) ClearActivePage(pageID string) error {
 	st, err := o.LoadState()

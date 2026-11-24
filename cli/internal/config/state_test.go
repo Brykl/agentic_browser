@@ -69,4 +69,21 @@ func TestStateLifecycle(t *testing.T) {
 	if _, err := opts.ResolvePageID(nil); err == nil {
 		t.Fatalf("expected page ID to be cleared")
 	}
+
+	// ClearActiveBrowser clears only matching browser (and its page)
+	_ = opts.SetActivePage("b-999", "p-444")
+	_ = opts.ClearActiveBrowser("b-other")
+	if got, _ := opts.ResolveBrowserID(""); got != "b-999" {
+		t.Fatalf("expected browser ID b-999 to remain, got %q", got)
+	}
+	if got, _ := opts.ResolvePageID(nil); got != "p-444" {
+		t.Fatalf("expected page ID p-444 to remain, got %q", got)
+	}
+	_ = opts.ClearActiveBrowser("b-999")
+	if _, err := opts.ResolveBrowserID(""); err == nil {
+		t.Fatalf("expected browser ID to be cleared")
+	}
+	if _, err := opts.ResolvePageID(nil); err == nil {
+		t.Fatalf("expected page ID to be cleared along with browser")
+	}
 }

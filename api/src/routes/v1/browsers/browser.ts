@@ -3,9 +3,11 @@ import type { BrowserManager } from '../../../browser/manager.ts'
 import { PagesRoutesV1 } from './pages/route.ts'
 import { GetListOfBrowsers } from './get.ts'
 import { CreateBrowser } from './post.ts'
+import { DeleteBrowser } from './delete.ts'
 
 export async function BrowsersRoutesV1(fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
     GetListOfBrowsers('/', fastify, { browserManager })
     CreateBrowser('/', fastify, { browserManager })
+    DeleteBrowser('/:id', fastify, { browserManager })
     fastify.register(PagesRoutesV1, { prefix: '/pages', browserManager })
 }

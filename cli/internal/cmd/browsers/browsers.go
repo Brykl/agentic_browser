@@ -17,6 +17,7 @@ func NewCmd(opts *config.Options) *cobra.Command {
 	cmd.AddCommand(
 		newListCmd(opts),
 		newCreateCmd(opts),
+		newDeleteCmd(opts),
 	)
 
 	return cmd

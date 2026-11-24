@@ -26,6 +26,12 @@ type CreateBrowserResponse struct {
 	BrowserID string `json:"browserId"`
 }
 
+// DeleteBrowserResponse is the response from DELETE /api/v1/browsers/:id.
+type DeleteBrowserResponse struct {
+	BrowserID string `json:"browserId"`
+	Deleted   bool   `json:"deleted"`
+}
+
 // PageSummary represents a page item in GET /api/v1/browsers/pages.
 type PageSummary struct {
 	PageID string `json:"pageId"`

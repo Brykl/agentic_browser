@@ -242,8 +242,12 @@ export class BrowserManager {
         return await this.getPageDriver(browserId, pageId)?.setViewport(w, h);
     }
 
-    async closeBrowser(browserId: string): Promise<void> {
-        await this.browsers.get(browserId)?.browser.close();
+    async closeBrowser(browserId: string): Promise<boolean> {
+        const session = this.browsers.get(browserId);
+        if (!session) return false;
+        this.browsers.delete(browserId);
+        await session.browser.close();
+        return true;
     }
 
     async startScreencast(browserId: string, pageId: string): Promise<FrameStream | undefined> {

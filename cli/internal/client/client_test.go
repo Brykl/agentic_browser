@@ -32,6 +32,12 @@ func TestClientBrowsersAndPages(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(client.CreateBrowserResponse{BrowserID: "b2"})
 
+		case r.Method == http.MethodDelete && r.URL.Path == "/api/v1/browsers/b2":
+			_ = json.NewEncoder(w).Encode(client.DeleteBrowserResponse{
+				BrowserID: "b2",
+				Deleted:   true,
+			})
+
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/browsers/pages":
 			if r.URL.Query().Get("browserId") != "b1" {
 				w.WriteHeader(http.StatusNotFound)
@@ -155,6 +161,11 @@ func TestClientBrowsersAndPages(t *testing.T) {
 	createBrowserRes, err := c.CreateBrowser(ctx, client.CreateBrowserRequest{OwnerID: "u1", Headless: &headless, Engine: "camoufox"})
 	if err != nil || createBrowserRes.BrowserID != "b2" {
 		t.Fatalf("CreateBrowser unexpected: res=%+v err=%v", createBrowserRes, err)
+	}
+
+	delBrowserRes, err := c.DeleteBrowser(ctx, "b2")
+	if err != nil || !delBrowserRes.Deleted || delBrowserRes.BrowserID != "b2" {
+		t.Fatalf("DeleteBrowser unexpected: res=%+v err=%v", delBrowserRes, err)
 	}
 
 	pagesRes, err := c.ListPages(ctx, "b1")
