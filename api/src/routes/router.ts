@@ -13,24 +13,23 @@ export const DEFAULT_PAGE_ID = "269cb5c2-0de6-4447-9ec1-620e7e117cf5";
 
 export async function ApiRouter(fastify: FastifyInstance) {
     // const browserManager = new BrowserManager();
+    let ready: boolean = false
 
     const browserManager = new BrowserManager([
         new PuppeteerEngine,
         new CamoufoxEngine
     ],
-        process.env.BROWSER_ENGINE?.trim().toLowerCase() || 'camoufox')
-    process.env.BROWSER_HEADLESS || true
 
-    // Pre-create a default browser and blank page on startup so the UI and CLI work immediately;
-    // avoid external network requests at boot unless AGENTIC_BROWSER_DEFAULT_URL is explicitly set.
-    fastify.addHook('onListen', async () => {
-        const headlessEnv = process.env.AGENTIC_BROWSER_HEADLESS?.trim().toLowerCase() || true;
-        // const headless = headlessEnv !== 'false' && headlessEnv !== '0';
-        const defaultUrl = process.env.AGENTIC_BROWSER_DEFAULT_URL?.trim() || "https://google.com";
+        process.env.BROWSER_ENGINE?.trim().toLowerCase() || 'camoufox')
+
+    fastify.addHook('onReady', async () => {
+        const headlessEnv = (process.env.AGENTIC_BROWSER_HEADLESS ?? process.env.BROWSER_HEADLESS)?.trim().toLowerCase();
+        const headless = headlessEnv !== 'false' && headlessEnv !== '0';
+        const defaultUrl = process.env.AGENTIC_BROWSER_DEFAULT_URL?.trim() || "about:blank";
 
         try {
             const config: BrowserLaunchConfig = {
-                headless: true
+                headless
             }
             const browserId = await browserManager.createBrowser("system", config, DEFAULT_BROWSER_ID)
             const pageId = await browserManager.createPage(
@@ -38,6 +37,7 @@ export async function ApiRouter(fastify: FastifyInstance) {
                 defaultUrl ? { url: defaultUrl } : undefined,
                 DEFAULT_PAGE_ID,
             );
+            ready = true
             fastify.log.info(
                 { browserId, pageId, headless: config.headless },
                 'Default browser and page initialized',
@@ -51,6 +51,6 @@ export async function ApiRouter(fastify: FastifyInstance) {
         await browserManager.closeAll()
     })
 
-    fastify.register(RouterV1, { prefix: '/v1', browserManager })
+    fastify.register(RouterV1, { prefix: '/v1', browserManager, isReady: () => ready })
     fastify.register(WsRouteV1, { prefix: '/v1', browserManager })
 }
