@@ -8,6 +8,7 @@ const host = process.env.HOST?.trim() || '127.0.0.1';
 
 const fastify = Fastify({
   logger: true,
+  pluginTimeout: 60_000,
 });
 
 // Mount all REST, WebSocket, and MCP endpoints under /api
