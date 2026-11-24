@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import type { CDPSession, Frame, Page } from 'puppeteer';
+import type { CDPSession, Frame, HTTPRequest, Page } from 'puppeteer';
 import type { Protocol } from 'puppeteer-core';
 import type {
     AgentCursorEvent,
@@ -127,15 +127,35 @@ export class PuppeteerPageDriver implements PageDriver {
 
         const cdp = await this.page.createCDPSession();
         let frameNavigated = false;
+        let navRequest: HTTPRequest | null = null;
         let resolveNavStarted: (() => void) | undefined;
+        let resolveNavFailed: (() => void) | undefined;
         const navStarted = new Promise<void>((resolve) => {
             resolveNavStarted = resolve;
+        });
+        const navFailed = new Promise<false>((resolve) => {
+            resolveNavFailed = () => resolve(false);
         });
         const onFrameNavigated = (frame: Frame) => {
             if (frame === this.page.mainFrame()) {
                 frameNavigated = true;
                 resolveNavStarted?.();
             }
+        };
+        const onRequest = (req: HTTPRequest) => {
+            if (req.isNavigationRequest() && req.frame() === this.page.mainFrame()) {
+                navRequest = req;
+                resolveNavStarted?.();
+            }
+        };
+        const onRequestFailed = (req: HTTPRequest) => {
+            if (req === navRequest) {
+                resolveNavFailed?.();
+            }
+        };
+        const onClose = () => {
+            resolveNavStarted?.();
+            resolveNavFailed?.();
         };
 
         try {
@@ -155,6 +175,9 @@ export class PuppeteerPageDriver implements PageDriver {
             let navPromise: Promise<boolean> | null = null;
             if (waitForNav) {
                 this.page.on('framenavigated', onFrameNavigated);
+                this.page.on('request', onRequest);
+                this.page.on('requestfailed', onRequestFailed);
+                this.page.on('close', onClose);
                 navPromise = this.page
                     .waitForNavigation({ waitUntil: 'domcontentloaded', timeout: navTimeoutMs })
                     .then(() => true)
@@ -173,19 +196,24 @@ export class PuppeteerPageDriver implements PageDriver {
                 return { clicked: true, ref, x, y, navigated: false };
             }
 
-            if (!frameNavigated && this.page.url() === urlBefore && detectMs > 0) {
+            if (!navRequest && !frameNavigated && this.page.url() === urlBefore && detectMs > 0) {
                 await Promise.race([navStarted, waitSleep(detectMs)]);
             }
 
-            const navigated = frameNavigated || (!this.page.isClosed() && this.page.url() !== urlBefore);
-            if (navigated && navPromise && !this.page.isClosed()) {
-                await navPromise;
+            const navDetected = Boolean(navRequest) || frameNavigated || (!this.page.isClosed() && this.page.url() !== urlBefore);
+            let waitedNav = false;
+            if (navDetected && navPromise && !this.page.isClosed()) {
+                waitedNav = await Promise.race([navPromise, navFailed]);
             }
 
+            const navigated = frameNavigated || waitedNav || (!this.page.isClosed() && this.page.url() !== urlBefore);
             return { clicked: true, ref, x, y, navigated };
         } finally {
             if (waitForNav) {
                 this.page.off('framenavigated', onFrameNavigated);
+                this.page.off('request', onRequest);
+                this.page.off('requestfailed', onRequestFailed);
+                this.page.off('close', onClose);
             }
             await cdp.detach().catch(() => { });
         }

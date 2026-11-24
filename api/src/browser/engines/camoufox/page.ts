@@ -11,7 +11,7 @@ import type {
     WaitOptions,
     WaitResult,
 } from "../../types.ts";
-import type { Frame, Page } from "playwright-core";
+import type { Frame, Page, Request } from "playwright-core";
 import { compactAriaSnapshot } from "./aria-snapshot.ts";
 import {
     IGNORED_KEYS,
@@ -101,18 +101,42 @@ export class CamoufoxPageDriver implements PageDriver {
 
         const urlBefore = this.page.url();
         let frameNavigated = false;
+        let navRequest: Request | null = null;
         let resolveNavStarted: (() => void) | undefined;
+        let resolveNavCommitted: (() => void) | undefined;
         const navStarted = new Promise<void>((resolve) => {
             resolveNavStarted = resolve;
+        });
+        const navCommitted = new Promise<void>((resolve) => {
+            resolveNavCommitted = resolve;
         });
         const onFrameNavigated = (frame: Frame) => {
             if (frame === this.page.mainFrame()) {
                 frameNavigated = true;
                 resolveNavStarted?.();
+                resolveNavCommitted?.();
             }
+        };
+        const onRequest = (req: Request) => {
+            if (req.isNavigationRequest() && req.frame() === this.page.mainFrame()) {
+                navRequest = req;
+                resolveNavStarted?.();
+            }
+        };
+        const onRequestFailed = (req: Request) => {
+            if (req === navRequest) {
+                resolveNavCommitted?.();
+            }
+        };
+        const onClose = () => {
+            resolveNavStarted?.();
+            resolveNavCommitted?.();
         };
         if (waitForNav) {
             this.page.on('framenavigated', onFrameNavigated);
+            this.page.on('request', onRequest);
+            this.page.on('requestfailed', onRequestFailed);
+            this.page.on('close', onClose);
         }
 
         let x: number | undefined;
@@ -168,19 +192,30 @@ export class CamoufoxPageDriver implements PageDriver {
                 return { clicked: true, ref, x, y, navigated: false };
             }
 
-            if (!frameNavigated && this.page.url() === urlBefore && detectMs > 0) {
+            if (!navRequest && !frameNavigated && this.page.url() === urlBefore && detectMs > 0) {
                 await Promise.race([navStarted, waitSleep(detectMs)]);
+            }
+
+            const navDeadline = Date.now() + navTimeoutMs;
+            if (navRequest && !frameNavigated && !this.page.isClosed()) {
+                await Promise.race([navCommitted, waitSleep(navTimeoutMs)]);
             }
 
             const navigated = frameNavigated || (!this.page.isClosed() && this.page.url() !== urlBefore);
             if (navigated && !this.page.isClosed()) {
-                await this.page.waitForLoadState('domcontentloaded', { timeout: navTimeoutMs }).catch(() => { });
+                const remaining = navDeadline - Date.now();
+                if (remaining > 0) {
+                    await this.page.waitForLoadState('domcontentloaded', { timeout: remaining }).catch(() => { });
+                }
             }
 
             return { clicked: true, ref, x, y, navigated };
         } finally {
             if (waitForNav) {
                 this.page.off('framenavigated', onFrameNavigated);
+                this.page.off('request', onRequest);
+                this.page.off('requestfailed', onRequestFailed);
+                this.page.off('close', onClose);
             }
         }
     }
