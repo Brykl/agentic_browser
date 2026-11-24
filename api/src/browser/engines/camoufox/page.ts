@@ -123,24 +123,30 @@ export class CamoufoxPageDriver implements PageDriver {
         return { clicked: true, ref, x: target.x, y: target.y };
     }
 
-    async fill(ref: string, value: string): Promise<{ filled: true; ref: string; value: string }> {
+    async fill(ref: string, value: string): Promise<{ filled: boolean; ref: string; value: string }> {
         await this.click(ref);
 
         await this.page.keyboard.press('Control+a');
         await this.page.keyboard.press('Backspace');
 
         if (value.length > 0) {
-            const chars = [...value];
-            for (let i = 0; i < chars.length; i++) {
-                await this.page.keyboard.type(chars[i]!, { delay: randomInt(30, 100) });
-                if (i < chars.length - 1) {
-                    await sleep(randomInt(70, 400));
-                }
-            }
-        }
 
+            if (this.humanize) {
+                const chars = [...value];
+                for (let i = 0; i < chars.length; i++) {
+                    await this.page.keyboard.type(chars[i]!, { delay: randomInt(10, 25) });
+                    if (i < chars.length - 1) {
+                        await sleep(randomInt(15, 50));
+                    }
+                }
+                return { filled: true, ref, value };
+            }
+            await this.page.keyboard.insertText(value)
+            return { filled: true, ref, value };
+        }
         return { filled: true, ref, value };
     }
+
     async getScroll(): Promise<{ x: number; y: number; maxX: number; maxY: number }> {
         return await this.page.evaluate(() => ({
             x: window.scrollX,

@@ -137,8 +137,11 @@ export class PuppeteerPageDriver implements PageDriver {
         await this.page.keyboard.press('Backspace');
 
         if (value.length > 0) {
-            const delay = randomInt(100, 500);
-            await this.page.keyboard.type(value, { delay });
+            if (this.humanize) {
+                await this.page.keyboard.type(value, { delay: randomInt(15, 50) });
+            } else {
+                await this.page.keyboard.sendCharacter(value);
+            }
         }
 
         return { filled: true, ref, value };
