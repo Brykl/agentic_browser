@@ -86,7 +86,7 @@ export class BrowserManager {
             throw new Error(`Unknown browser engine: ${engineName}`);
         }
 
-        const humanize = config.humanize ?? true;
+        const humanize = config.humanize ?? false;
         const browserId = customBrowserId ?? randomUUID();
         const browser = await engine.launch({ ...config, humanize });
 
