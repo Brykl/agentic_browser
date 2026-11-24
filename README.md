@@ -32,7 +32,7 @@ pnpm run install:plugin
 
 That's it:
 - `pnpm install` installs Node dependencies and downloads Chrome/Chromium for Puppeteer (allowed in `pnpm-workspace.yaml`).
-- `pnpm run install:plugin` runs [scripts/install-plugin.ps1](scripts/install-plugin.ps1), which builds the API (`dist/`) and UI (`ui/dist/`), copies `plugin.json`, `assets/`, `bin/ab.exe`, `rules/`, `skills/`, `dist/`, and `ui/dist/` into `%USERPROFILE%\.gemini\config\plugins\agent-browser-plugin\`, and links `node_modules` via a directory junction (so keep the cloned `agentic_browser` folder on disk).
+- `pnpm run install:plugin` runs [scripts/install-plugin.ps1](scripts/install-plugin.ps1), which builds the API (`dist/`) and UI (`ui/dist/`), copies `plugin.json`, `assets/`, `bin/ab.exe`, `rules/`, `skills/`, `dist/`, and `ui/dist/` into `%USERPROFILE%\.gemini\config\plugins\agent-browser-plugin\`, links `node_modules` via a directory junction (so keep the cloned `agentic_browser` folder on disk), and adds `<TargetDir>\bin` to the Windows User `PATH` (idempotently) as well as the current PowerShell session so `ab` (`ab.exe`) can be run from any directory.
 
 ### Verify in Antigravity
 
@@ -55,11 +55,11 @@ Once enabled, the `agentic-browser` skill and `rules/AGENTS.md` are active autom
 # Start the unified API + UI server directly (http://localhost:3777)
 pnpm run start
 
-# Test the prebuilt CLI in another terminal
-.\bin\ab.exe browsers list --json
-.\bin\ab.exe pages create --url "https://example.com"
-.\bin\ab.exe pages snapshot
-.\bin\ab.exe pages screenshot
+# Test the prebuilt CLI in another terminal (`ab` is on User PATH after `pnpm run install:plugin`, or use `.\bin\ab.exe` from the repo)
+ab browsers list --json
+ab pages create --url "https://example.com"
+ab pages snapshot
+ab pages screenshot
 ```
 
 ### Updating after code changes

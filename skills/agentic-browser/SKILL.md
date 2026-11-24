@@ -12,10 +12,10 @@ Control virtual browser sessions (**Camoufox** anti-detect Firefox and **Puppete
 Relative to this `SKILL.md` (`skills/agentic-browser/SKILL.md`), the plugin root is `../..`:
 - Server entrypoint: `<plugin_root>/dist/index.js`
 - Built UI assets: `<plugin_root>/ui/dist/` (served automatically by the server)
-- CLI binary: `<plugin_root>/bin/ab.exe` (Windows)
+- CLI binary: `ab` (`<plugin_root>/bin/ab.exe` on Windows — added to the Windows User `PATH` by `scripts/install-plugin.ps1`)
 
-On Windows PowerShell, resolve the plugin root dynamically if needed, or check the current workspace if working inside the repo:
-- Installed plugin path: `C:\Users\<user>\.gemini\config\plugins\agent-browser-plugin\`
+On Windows PowerShell, prefer invoking `ab` directly from `PATH`. If `ab` is not yet resolved in an older shell session, fall back to the explicit binary path:
+- Installed plugin path: `C:\Users\<user>\.gemini\config\plugins\agent-browser-plugin\` (`<plugin_root>\dist\index.js` and `<plugin_root>\bin\ab.exe`)
 - Fallback inside source repo: `./dist/index.js` and `./bin/ab.exe`
 
 ## Step 1: Ensure API + UI Server Is Running
@@ -42,20 +42,21 @@ The server automatically creates a default browser and page on startup.
 
 ```powershell
 # List browsers (use --json for structured parsing)
-.\bin\ab.exe browsers list --json
+ab browsers list --json
 
-# Set active browser in CLI state (or create a new one, optionally choosing engine)
-.\bin\ab.exe use browser <browser-id>
-.\bin\ab.exe browsers create --owner-id agent
-.\bin\ab.exe browsers create --owner-id agent --engine camoufox
-.\bin\ab.exe browsers create --owner-id agent --engine puppeteer
+# Set active browser in CLI state (or create/delete one, optionally choosing engine)
+ab use browser <browser-id>
+ab browsers create --owner-id agent
+ab browsers create --owner-id agent --engine camoufox
+ab browsers create --owner-id agent --engine puppeteer
+ab browsers delete <browser-id>
 
 # List pages in the active browser, or open a new page (also sets it active)
-.\bin\ab.exe pages list --json
-.\bin\ab.exe pages create --url "https://example.com"
+ab pages list --json
+ab pages create --url "https://example.com"
 
 # Check active browser & page context
-.\bin\ab.exe status
+ab status
 ```
 
 To avoid state collisions across concurrent agents, pass `--browser-id <id>`, `[page-id]`, or set `AGB_BROWSER_ID` / `AGB_PAGE_ID` and `AGENTIC_BROWSER_URL` (defaults to `http://localhost:3777`).
@@ -66,24 +67,24 @@ Always follow the **snapshot -> act -> re-snapshot** loop:
 
 ```powershell
 # 1. Capture compact accessibility tree with [ref=eN] IDs (or --full for the raw uncompacted tree)
-.\bin\ab.exe pages snapshot
-.\bin\ab.exe pages snapshot --full
+ab pages snapshot
+ab pages snapshot --full
 
 # Save a numbered PNG screenshot to screenshots/ (prints saved file path)
-.\bin\ab.exe pages screenshot
+ab pages screenshot
 
 # 2. Act using ref IDs from the latest snapshot
-.\bin\ab.exe pages click --ref e5
-.\bin\ab.exe pages fill --ref e8 --value "search query"
-.\bin\ab.exe pages scroll --top 500
-.\bin\ab.exe pages scroll-info
+ab pages click --ref e5
+ab pages fill --ref e8 --value "search query"
+ab pages scroll --top 500
+ab pages scroll-info
 
 # 3. Navigate or reload
-.\bin\ab.exe pages update --url "https://example.com/next"
-.\bin\ab.exe pages reload
+ab pages update --url "https://example.com/next"
+ab pages reload
 ```
 
 **Important rules:**
 - Element `[ref]` mappings are cleared on page navigation (`framenavigated`). Always run `pages snapshot` again after navigating, reloading, or clicking elements that change the page.
 - Prefer `--json` when you need IDs or structured output.
-- Clean up extra tabs when done with `.\bin\ab.exe pages delete <page-id>`.
+- Clean up extra tabs or browsers when done with `ab pages delete <page-id>` or `ab browsers delete <browser-id>`.
