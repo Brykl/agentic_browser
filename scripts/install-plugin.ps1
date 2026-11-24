@@ -119,4 +119,10 @@ if (-not ($sessionEntries | Where-Object { $_.TrimEnd('\') -ieq $normalizedBin }
     $env:Path = ($sessionEntries + $binFullPath) -join ';'
 }
 
+# Stop stale daemon running from the plugin directory so the next launch uses the new build
+$targetNorm = $TargetDir.TrimEnd('\', '/')
+Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" |
+    Where-Object { ($_.CommandLine -replace '/', '\') -like "*$targetNorm*dist\index.js*" } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+
 Write-Host "Plugin synced to $TargetDir"
