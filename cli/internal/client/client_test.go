@@ -269,7 +269,7 @@ func TestClientBrowsersAndPages(t *testing.T) {
 		t.Fatalf("expected 400 batch APIError, got: %v", err)
 	}
 
-	reloadRes, err := c.ReloadPage(ctx, "b1", "p1")
+	reloadRes, err := c.ReloadPage(ctx, "p1", client.ReloadPageRequest{BrowserID: "b1", Snapshot: "compact"})
 	if err != nil || !reloadRes.Reloaded || reloadRes.PageID != "p1" {
 		t.Fatalf("ReloadPage unexpected: res=%+v err=%v", reloadRes, err)
 	}

@@ -65,12 +65,21 @@ func TestFillCmdBatchAndSingle(t *testing.T) {
 					Value:  m["value"].(string),
 				})
 			}
-			_ = json.NewEncoder(w).Encode(client.FillFieldsResponse{
+			res := client.FillFieldsResponse{
 				BrowserID: "b1",
 				PageID:    "p1",
 				Filled:    true,
 				Results:   results,
-			})
+				PageActionMeta: client.PageActionMeta{
+					URL:   "https://example.com/form",
+					Title: "Form",
+				},
+			}
+			if snapMode, ok := lastBody["snapshot"].(string); ok && snapMode != "" {
+				res.Snapshot = "+ [ref=e8] textbox value=\"hello, world\""
+				res.SnapshotMode = snapMode
+			}
+			_ = json.NewEncoder(w).Encode(res)
 			return
 		}
 		_ = json.NewEncoder(w).Encode(client.FillPageResponse{
@@ -90,20 +99,26 @@ func TestFillCmdBatchAndSingle(t *testing.T) {
 		}
 	}
 
-	// 1. Batch via repeated -f (preserving commas and '=')
+	// 1. Batch via repeated -f (preserving commas and '=') with --diff
 	{
 		var out bytes.Buffer
 		cmd := newFillCmd(newOpts())
 		cmd.SetOut(&out)
 		cmd.SetErr(&out)
-		cmd.SetArgs([]string{"--browser-id", "b1", "p1", "-f", "e8=hello, world", "-f", "e9=k=v"})
+		cmd.SetArgs([]string{"--browser-id", "b1", "p1", "-f", "e8=hello, world", "-f", "e9=k=v", "--diff"})
 		if err := cmd.Execute(); err != nil {
 			t.Fatalf("batch fill failed: %v", err)
 		}
 		if _, hasRef := lastBody["ref"]; hasRef {
 			t.Fatalf("batch request must not include 'ref': %+v", lastBody)
 		}
-		if !strings.Contains(out.String(), "Filled 2 fields:") || !strings.Contains(out.String(), `[e8] = "hello, world"`) {
+		if lastBody["snapshot"] != "diff" {
+			t.Fatalf("expected snapshot=diff in request, got %+v", lastBody)
+		}
+		if !strings.Contains(out.String(), "Filled 2 fields:") ||
+			!strings.Contains(out.String(), `[e8] = "hello, world"`) ||
+			!strings.Contains(out.String(), "URL: https://example.com/form") ||
+			!strings.Contains(out.String(), "--- snapshot (diff) ---") {
 			t.Fatalf("unexpected batch output: %q", out.String())
 		}
 	}

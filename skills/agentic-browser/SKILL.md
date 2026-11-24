@@ -67,7 +67,7 @@ To avoid state collisions across concurrent agents, pass `--browser-id <id>`, `[
 
 ## Step 3: Inspect and Interact via CLI
 
-Always follow the **snapshot -> act -> re-snapshot** loop:
+All page actions (`click`, `fill`, `update`, `reload`, `scroll`, `create`) immediately return the resulting `url`, `title`, and `navigated` status. Pass `--snapshot` (compact), `--diff` (line-level diff against the previous snapshot, automatically falling back to compact on navigation or large changes), or `--full-snapshot` to get the updated accessibility tree in the same call instead of running separate `get` and `snapshot` commands:
 
 ```powershell
 # 1. Capture compact accessibility tree with [ref=eN] IDs (or --full for the raw uncompacted tree)
@@ -77,22 +77,23 @@ ab pages snapshot --full
 # Save a numbered PNG screenshot to screenshots/ (prints saved file path)
 ab pages screenshot
 
-# 2. Act using ref IDs from the latest snapshot
-ab pages click --ref e5
+# 2. Act using ref IDs from the latest snapshot (add --snapshot or --diff to inspect the result in 1 turn)
+ab pages click --ref e5 --snapshot
+ab pages click --ref e5 --diff
 ab pages fill --ref e8 --value "search query"
 # Fill multiple form fields in a single request (prefer this over repeated fill calls)
-ab pages fill -f e8="user@example.com" -f e9="secret"
+ab pages fill -f e8="user@example.com" -f e9="secret" --diff
 ab pages fill --fields-json '[{"ref":"e8","value":"line1\nline2"}]'
-ab pages scroll --top 500
+ab pages scroll --top 500 --diff
 ab pages scroll-info
 
-# 3. Navigate or reload
-ab pages update --url "https://example.com/next"
-ab pages reload
+# 3. Navigate or reload (with immediate snapshot)
+ab pages update --url "https://example.com/next" --snapshot
+ab pages reload --snapshot
 ```
 
 **Important rules:**
-- Element `[ref]` mappings are cleared on page navigation (`framenavigated`). Always run `pages snapshot` again after navigating, reloading, or clicking elements that change the page.
+- Element `[ref]` mappings are cleared on page navigation (`framenavigated`). Prefer passing `--snapshot` or `--diff` directly on `click`, `fill`, `update`, `reload`, `scroll`, or `create` to avoid separate `pages get` + `pages snapshot` round-trips.
 - When filling multi-field forms, pass multiple `-f ref=value` flags (or `--fields-json`) to `ab pages fill` so all fields are filled in one API call.
 - Prefer `--json` when you need IDs or structured output.
 - Clean up extra tabs or browsers when done with `ab pages delete <page-id>` or `ab browsers delete <browser-id>`.

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import type { BrowserManager } from '../../../../../../browser/manager.ts'
-import { FillBatchError, type FillFieldInput } from '../../../../../../browser/types.ts'
+import { FillBatchError, type FillFieldInput, type SnapshotMode } from '../../../../../../browser/types.ts'
 
 type FillPageBody =
     | {
@@ -8,12 +8,14 @@ type FillPageBody =
         ref: string;
         value: string;
         fields?: never;
+        snapshot?: SnapshotMode;
     }
     | {
         browserId: string;
         fields: FillFieldInput[];
         ref?: never;
         value?: never;
+        snapshot?: SnapshotMode;
     };
 
 export function FillPage(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
@@ -29,6 +31,7 @@ export function FillPage(path: string, fastify: FastifyInstance, { browserManage
                     browserId: { type: 'string', minLength: 1 },
                     ref: { type: 'string', minLength: 1 },
                     value: { type: 'string' },
+                    snapshot: { type: 'string', enum: ['compact', 'full', 'diff'] },
                     fields: {
                         type: 'array',
                         minItems: 1,
@@ -62,9 +65,9 @@ export function FillPage(path: string, fastify: FastifyInstance, { browserManage
 
         try {
             if ('fields' in body && body.fields) {
-                const results = await browserManager.fillFields(body.browserId, pageId, body.fields)
+                const batchResult = await browserManager.fillFields(body.browserId, pageId, body.fields, { snapshot: body.snapshot })
 
-                if (!results) {
+                if (!batchResult) {
                     return reply.code(404).send({ error: 'Page not found' })
                 }
 
@@ -72,11 +75,11 @@ export function FillPage(path: string, fastify: FastifyInstance, { browserManage
                     browserId: body.browserId,
                     pageId,
                     filled: true,
-                    results,
+                    ...batchResult,
                 })
             }
 
-            const result = await browserManager.fillForm(body.browserId, pageId, body.ref, body.value)
+            const result = await browserManager.fillForm(body.browserId, pageId, body.ref, body.value, { snapshot: body.snapshot })
 
             if (!result) {
                 return reply.code(404).send({ error: 'Page not found' })

@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify'
 import type { BrowserManager } from '../../../../../browser/manager.ts'
+import type { SnapshotMode } from '../../../../../browser/types.ts'
 
 interface UpdatePageBody {
     browserId: string
     pageUrl: string
+    snapshot?: SnapshotMode
 }
 
 export function UpdatePage(path: string, fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
@@ -18,14 +20,15 @@ export function UpdatePage(path: string, fastify: FastifyInstance, { browserMana
                 properties: {
                     browserId: { type: 'string', minLength: 1 },
                     pageUrl: { type: 'string', minLength: 1 },
+                    snapshot: { type: 'string', enum: ['compact', 'full', 'diff'] },
                 },
             },
         },
     }, async (request, reply) => {
         const { id: pageId } = request.params
-        const { browserId, pageUrl } = request.body
+        const { browserId, pageUrl, snapshot } = request.body
 
-        const pageInfo = await browserManager.updatePageUrl(browserId, pageId, pageUrl)
+        const pageInfo = await browserManager.updatePageUrl(browserId, pageId, pageUrl, { snapshot })
 
         if (!pageInfo) {
             return reply.code(404).send({ error: 'Page not found' })

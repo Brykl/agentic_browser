@@ -57,9 +57,9 @@ pnpm run start
 
 # Test the prebuilt CLI in another terminal (`ab` is on User PATH after `pnpm run install:plugin`, or use `.\bin\ab.exe` from the repo)
 ab browsers list --json
-ab pages create --url "https://example.com"
-ab pages snapshot
-ab pages fill -f e8="user@example.com" -f e9="secret"
+ab pages create --url "https://example.com" --snapshot
+ab pages fill -f e8="user@example.com" -f e9="secret" --diff
+ab pages click --ref e10 --snapshot
 ab pages screenshot
 ```
 

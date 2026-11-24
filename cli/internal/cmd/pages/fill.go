@@ -55,6 +55,7 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 		value      string
 		fieldSpecs []string
 		fieldsJSON string
+		snap       snapshotFlags
 	)
 
 	cmd := &cobra.Command{
@@ -73,6 +74,11 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 				return fmt.Errorf("specify either --ref and --value, or one or more --field ref=value (or --fields-json)")
 			}
 
+			snapshotMode, err := snap.mode()
+			if err != nil {
+				return err
+			}
+
 			resolvedBrowserID, resolvedPageID, err := opts.ResolveTarget(cmd.Context(), browserID, args)
 			if err != nil {
 				return err
@@ -89,6 +95,7 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 				res, err := opts.NewClient().FillPageFields(cmd.Context(), resolvedPageID, client.FillFieldsRequest{
 					BrowserID: resolvedBrowserID,
 					Fields:    fields,
+					Snapshot:  snapshotMode,
 				})
 				if err != nil {
 					return err
@@ -106,7 +113,7 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 						return err
 					}
 				}
-				return nil
+				return printActionMeta(out, res.PageActionMeta)
 			}
 
 			ref = strings.TrimSpace(ref)
@@ -121,6 +128,7 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 				BrowserID: resolvedBrowserID,
 				Ref:       ref,
 				Value:     value,
+				Snapshot:  snapshotMode,
 			})
 			if err != nil {
 				return err
@@ -130,8 +138,10 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 				return output.PrintJSON(out, res)
 			}
 
-			_, err = fmt.Fprintf(out, "Filled ref [%s] with %q\n", res.Ref, res.Value)
-			return err
+			if _, err := fmt.Fprintf(out, "Filled ref [%s] with %q\n", res.Ref, res.Value); err != nil {
+				return err
+			}
+			return printActionMeta(out, res.PageActionMeta)
 		},
 	}
 
@@ -140,6 +150,7 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 	cmd.Flags().StringVarP(&value, "value", "v", "", "Text value to enter into the element")
 	cmd.Flags().StringArrayVarP(&fieldSpecs, "field", "f", nil, "Repeatable field assignment in ref=value format (e.g. -f e8=user@example.com -f e9=secret)")
 	cmd.Flags().StringVar(&fieldsJSON, "fields-json", "", `JSON array of fields to fill (e.g. '[{"ref":"e8","value":"hello"}]')`)
+	snap.bind(cmd)
 
 	return cmd
 }

@@ -14,6 +14,7 @@ func newUpdateCmd(opts *config.Options) *cobra.Command {
 	var (
 		browserID string
 		pageURL   string
+		snap      snapshotFlags
 	)
 
 	cmd := &cobra.Command{
@@ -22,6 +23,11 @@ func newUpdateCmd(opts *config.Options) *cobra.Command {
 		Short:   "Navigate a page to a new URL",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			snapshotMode, err := snap.mode()
+			if err != nil {
+				return err
+			}
+
 			resolvedBrowserID, resolvedPageID, err := opts.ResolveTarget(cmd.Context(), browserID, args)
 			if err != nil {
 				return err
@@ -30,6 +36,7 @@ func newUpdateCmd(opts *config.Options) *cobra.Command {
 			res, err := opts.NewClient().UpdatePage(cmd.Context(), resolvedPageID, client.UpdatePageRequest{
 				BrowserID: resolvedBrowserID,
 				PageURL:   pageURL,
+				Snapshot:  snapshotMode,
 			})
 			if err != nil {
 				return err
@@ -45,13 +52,17 @@ func newUpdateCmd(opts *config.Options) *cobra.Command {
 			fmt.Fprintf(tw, "Page ID:\t%s\n", res.PageID)
 			fmt.Fprintf(tw, "URL:\t%s\n", res.URL)
 			fmt.Fprintf(tw, "Title:\t%s\n", res.Title)
-			return tw.Flush()
+			if err := tw.Flush(); err != nil {
+				return err
+			}
+			return printActionSnapshot(out, res.Snapshot, res.SnapshotMode)
 		},
 	}
 
 	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
 	cmd.Flags().StringVar(&pageURL, "url", "", "Target URL (required)")
 	_ = cmd.MarkFlagRequired("url")
+	snap.bind(cmd)
 
 	return cmd
 }

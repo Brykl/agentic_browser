@@ -14,6 +14,7 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 	var (
 		browserID string
 		pageURL   string
+		snap      snapshotFlags
 	)
 
 	cmd := &cobra.Command{
@@ -21,6 +22,11 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 		Short: "Open a new page in a browser session",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			snapshotMode, err := snap.mode()
+			if err != nil {
+				return err
+			}
+
 			resolvedBrowserID, err := opts.ResolveBrowserID(cmd.Context(), browserID)
 			if err != nil {
 				return err
@@ -29,6 +35,7 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 			res, err := opts.NewClient().CreatePage(cmd.Context(), client.CreatePageRequest{
 				BrowserID: resolvedBrowserID,
 				PageURL:   pageURL,
+				Snapshot:  snapshotMode,
 			})
 			if err != nil {
 				return err
@@ -44,8 +51,10 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 			}
 
 			if res.PageID != "" {
-				_, err = fmt.Fprintln(out, res.PageID)
-				return err
+				if _, err := fmt.Fprintln(out, res.PageID); err != nil {
+					return err
+				}
+				return printActionMeta(out, res.PageActionMeta)
 			}
 			_, err = fmt.Fprintln(out, res.Message)
 			return err
@@ -54,6 +63,7 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 
 	cmd.Flags().StringVar(&browserID, "browser-id", "", "Browser session ID (defaults to active browser)")
 	cmd.Flags().StringVar(&pageURL, "url", "", "Initial URL to open (optional)")
+	snap.bind(cmd)
 
 	return cmd
 }

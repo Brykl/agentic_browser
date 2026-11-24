@@ -87,3 +87,17 @@ export class FillBatchError extends Error {
         this.completed = completed;
     }
 }
+
+export type SnapshotMode = 'compact' | 'full' | 'diff';
+
+export interface ActionOptions {
+    snapshot?: SnapshotMode;
+}
+
+export interface PageActionMeta {
+    url: string;
+    title: string;
+    navigated: boolean;
+    snapshot?: string;
+    snapshotMode?: SnapshotMode;
+}

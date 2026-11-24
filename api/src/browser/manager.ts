@@ -1,11 +1,33 @@
 import { randomUUID } from "node:crypto";
-import { type AgentCursorListener, type BrowserDriver, type BrowserEngine, type BrowserLaunchConfig, type FrameStream, type PageDriver, type InputEvent, FillBatchError, type FillFieldResult, type FillFieldInput } from "./types.ts";
+import {
+    type ActionOptions,
+    type AgentCursorListener,
+    type BrowserDriver,
+    type BrowserEngine,
+    type BrowserLaunchConfig,
+    type FillFieldInput,
+    type FillFieldResult,
+    type FrameStream,
+    type InputEvent,
+    type PageActionMeta,
+    type PageDriver,
+    FillBatchError,
+} from "./types.ts";
+import { computeSnapshotDiff } from "./snapshot-diff.ts";
 
+const SETTLE_DELAY_MS = 120;
+const TITLE_RETRY_ATTEMPTS = 3;
+const TITLE_RETRY_DELAY_MS = 120;
+
+function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 interface BrowserSession {
     browser: BrowserDriver;
     engine: string;
     pages: Map<string, PageDriver>;
+    lastSnapshots: Map<string, string>;
     ownerId: string;
     lastUsed: number;
     humanize: boolean;
@@ -69,6 +91,7 @@ export class BrowserManager {
             browser,
             engine: engineName,
             pages: new Map<string, PageDriver>(),
+            lastSnapshots: new Map<string, string>(),
             ownerId,
             lastUsed: Date.now(),
             humanize,
@@ -102,6 +125,7 @@ export class BrowserManager {
 
         page.onClose(() => {
             session.pages.delete(pageId);
+            session.lastSnapshots.delete(pageId);
         });
 
         if (params?.url) {
@@ -150,6 +174,76 @@ export class BrowserManager {
         }));
     }
 
+    private async safeTitle(page: PageDriver): Promise<string> {
+        for (let attempt = 0; attempt < TITLE_RETRY_ATTEMPTS; attempt++) {
+            try {
+                return await page.title();
+            } catch {
+                if (attempt < TITLE_RETRY_ATTEMPTS - 1) {
+                    await delay(TITLE_RETRY_DELAY_MS);
+                }
+            }
+        }
+        return '';
+    }
+
+    private async collectActionMeta(
+        session: BrowserSession,
+        pageId: string,
+        page: PageDriver,
+        prevUrl: string,
+        opts?: ActionOptions,
+        settle = false,
+    ): Promise<PageActionMeta> {
+        if (settle && opts?.snapshot) {
+            await delay(SETTLE_DELAY_MS);
+        }
+
+        const url = page.url();
+        const title = await this.safeTitle(page);
+        const navigated = prevUrl !== url;
+
+        if (!opts?.snapshot) {
+            return { url, title, navigated };
+        }
+
+        if (opts.snapshot === 'full') {
+            const snapshot = await page.fullSnapshot();
+            return { url, title, navigated, snapshot, snapshotMode: 'full' };
+        }
+
+        if (opts.snapshot === 'compact') {
+            const snapshot = await page.snapshot();
+            session.lastSnapshots.set(pageId, snapshot);
+            return { url, title, navigated, snapshot, snapshotMode: 'compact' };
+        }
+
+        // snapshot === 'diff'
+        const current = await page.snapshot();
+        const previous = session.lastSnapshots.get(pageId);
+        session.lastSnapshots.set(pageId, current);
+
+        if (navigated || previous === undefined) {
+            return { url, title, navigated, snapshot: current, snapshotMode: 'compact' };
+        }
+
+        const diff = computeSnapshotDiff(previous, current);
+        return { url, title, navigated, snapshot: diff.text, snapshotMode: diff.mode };
+    }
+
+    async getPageActionMeta(
+        browserId: string,
+        pageId: string,
+        opts?: ActionOptions,
+    ): Promise<PageActionMeta | undefined> {
+        const session = this.browsers.get(browserId);
+        if (!session) return undefined;
+        session.lastUsed = Date.now();
+        const page = session.pages.get(pageId);
+        if (!page) return undefined;
+        return await this.collectActionMeta(session, pageId, page, page.url(), opts, false);
+    }
+
     async getPageInfo(browserId: string, pageId: string): Promise<PageInfo | undefined> {
         const page = this.getPageDriver(browserId, pageId);
         if (!page) return undefined;
@@ -157,26 +251,38 @@ export class BrowserManager {
             browserId,
             pageId,
             url: page.url(),
-            title: await page.title(),
+            title: await this.safeTitle(page),
         };
     }
 
-    async updatePageUrl(browserId: string, pageId: string, url: string): Promise<PageInfo | undefined> {
-        const page = this.getPageDriver(browserId, pageId);
-        if (!page) return undefined;
+    async updatePageUrl(
+        browserId: string,
+        pageId: string,
+        url: string,
+        opts?: ActionOptions,
+    ): Promise<(PageInfo & PageActionMeta) | undefined> {
+        const session = this.browsers.get(browserId);
+        const page = session?.pages.get(pageId);
+        if (!session || !page) return undefined;
+        session.lastUsed = Date.now();
+        const prevUrl = page.url();
         await page.goto(url);
+        const meta = await this.collectActionMeta(session, pageId, page, prevUrl, opts, false);
         return {
             browserId,
             pageId,
-            url: page.url(),
-            title: await page.title(),
+            ...meta,
         };
     }
 
     async snapshotPage(browserId: string, pageId: string): Promise<string | undefined> {
-        const page = this.getPageDriver(browserId, pageId);
-        if (!page) return undefined;
-        return await page.snapshot();
+        const session = this.browsers.get(browserId);
+        const page = session?.pages.get(pageId);
+        if (!session || !page) return undefined;
+        session.lastUsed = Date.now();
+        const snapshot = await page.snapshot();
+        session.lastSnapshots.set(pageId, snapshot);
+        return snapshot;
     }
 
     async fullSnapshotPage(browserId: string, pageId: string): Promise<string | undefined> {
@@ -191,25 +297,39 @@ export class BrowserManager {
         return await page.screenshot();
     }
 
-    async clickButton(browserId: string, pageId: string, ref: string) {
-        const page = this.getPageDriver(browserId, pageId);
-        if (!page) return undefined;
-        return await page.click(ref);
+    async clickButton(browserId: string, pageId: string, ref: string, opts?: ActionOptions) {
+        const session = this.browsers.get(browserId);
+        const page = session?.pages.get(pageId);
+        if (!session || !page) return undefined;
+        session.lastUsed = Date.now();
+        const prevUrl = page.url();
+        const result = await page.click(ref);
+        const meta = await this.collectActionMeta(session, pageId, page, prevUrl, opts, true);
+        return { ...result, ...meta };
     }
 
-    async fillForm(browserId: string, pageId: string, ref: string, value: string) {
-        const page = this.getPageDriver(browserId, pageId);
-        if (!page) return undefined;
-        return await page.fill(ref, value);
+    async fillForm(browserId: string, pageId: string, ref: string, value: string, opts?: ActionOptions) {
+        const session = this.browsers.get(browserId);
+        const page = session?.pages.get(pageId);
+        if (!session || !page) return undefined;
+        session.lastUsed = Date.now();
+        const prevUrl = page.url();
+        const result = await page.fill(ref, value);
+        const meta = await this.collectActionMeta(session, pageId, page, prevUrl, opts, true);
+        return { ...result, ...meta };
     }
 
     async fillFields(
         browserId: string,
         pageId: string,
         fields: FillFieldInput[],
-    ): Promise<FillFieldResult[] | undefined> {
-        const page = this.getPageDriver(browserId, pageId);
-        if (!page) return undefined;
+        opts?: ActionOptions,
+    ): Promise<({ results: FillFieldResult[] } & PageActionMeta) | undefined> {
+        const session = this.browsers.get(browserId);
+        const page = session?.pages.get(pageId);
+        if (!session || !page) return undefined;
+        session.lastUsed = Date.now();
+        const prevUrl = page.url();
 
         const completed: FillFieldResult[] = [];
 
@@ -223,7 +343,8 @@ export class BrowserManager {
             }
         }
 
-        return completed;
+        const meta = await this.collectActionMeta(session, pageId, page, prevUrl, opts, true);
+        return { results: completed, ...meta };
     }
     async availableXYscroll(browserId: string, pageId: string) {
         const page = this.getPageDriver(browserId, pageId);
@@ -231,17 +352,30 @@ export class BrowserManager {
         return await page.getScroll();
     }
 
-    async scrollPage(browserId: string, pageId: string, left: number, top: number) {
-        const page = this.getPageDriver(browserId, pageId);
-        if (!page) return undefined;
-        return await page.scrollBy(left, top);
+    async scrollPage(browserId: string, pageId: string, left: number, top: number, opts?: ActionOptions) {
+        const session = this.browsers.get(browserId);
+        const page = session?.pages.get(pageId);
+        if (!session || !page) return undefined;
+        session.lastUsed = Date.now();
+        const prevUrl = page.url();
+        const result = await page.scrollBy(left, top);
+        const meta = await this.collectActionMeta(session, pageId, page, prevUrl, opts, true);
+        return { ...result, ...meta };
     }
 
-    async reloadPage(browserId: string, pageId: string): Promise<boolean> {
-        const page = this.getPageDriver(browserId, pageId);
-        if (!page) return false;
+    async reloadPage(
+        browserId: string,
+        pageId: string,
+        opts?: ActionOptions,
+    ): Promise<({ reloaded: true } & PageActionMeta) | undefined> {
+        const session = this.browsers.get(browserId);
+        const page = session?.pages.get(pageId);
+        if (!session || !page) return undefined;
+        session.lastUsed = Date.now();
+        const prevUrl = page.url();
         await page.reload();
-        return true;
+        const meta = await this.collectActionMeta(session, pageId, page, prevUrl, opts, false);
+        return { reloaded: true, ...meta };
     }
 
     async deletePage(browserId: string, pageId: string): Promise<boolean> {

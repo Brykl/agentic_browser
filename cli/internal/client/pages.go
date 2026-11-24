@@ -125,10 +125,9 @@ func (c *Client) FillPageFields(ctx context.Context, pageID string, req FillFiel
 }
 
 // ReloadPage calls POST /api/v1/browsers/pages/:id/reload.
-func (c *Client) ReloadPage(ctx context.Context, browserID, pageID string) (*ReloadPageResponse, error) {
+func (c *Client) ReloadPage(ctx context.Context, pageID string, req ReloadPageRequest) (*ReloadPageResponse, error) {
 	var res ReloadPageResponse
 	path := "/browsers/pages/" + url.PathEscape(pageID) + "/reload"
-	req := ReloadPageRequest{BrowserID: browserID}
 	if err := c.doJSON(ctx, http.MethodPost, path, nil, req, &res); err != nil {
 		return nil, err
 	}
