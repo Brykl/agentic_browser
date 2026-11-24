@@ -15,12 +15,17 @@ export async function ApiRouter(fastify: FastifyInstance) {
     // const browserManager = new BrowserManager();
     let ready: boolean = false
 
-    const browserManager = new BrowserManager([
-        new PuppeteerEngine,
-        new CamoufoxEngine
-    ],
+    const humanizeEnv = (process.env.AGENTIC_BROWSER_HUMANIZE ?? process.env.BROWSER_HUMANIZE)?.trim().toLowerCase();
+    const defaultHumanize = humanizeEnv === 'true' || humanizeEnv === '1';
 
-        process.env.BROWSER_ENGINE?.trim().toLowerCase() || 'camoufox')
+    const browserManager = new BrowserManager(
+        [
+            new PuppeteerEngine(),
+            new CamoufoxEngine(),
+        ],
+        process.env.BROWSER_ENGINE?.trim().toLowerCase() || 'camoufox',
+        defaultHumanize,
+    )
 
     fastify.addHook('onReady', async () => {
         const headlessEnv = (process.env.AGENTIC_BROWSER_HEADLESS ?? process.env.BROWSER_HEADLESS)?.trim().toLowerCase();
@@ -29,7 +34,8 @@ export async function ApiRouter(fastify: FastifyInstance) {
 
         try {
             const config: BrowserLaunchConfig = {
-                headless
+                headless,
+                humanize: defaultHumanize,
             }
             const browserId = await browserManager.createBrowser("system", config, DEFAULT_BROWSER_ID)
             const pageId = await browserManager.createPage(
@@ -39,7 +45,7 @@ export async function ApiRouter(fastify: FastifyInstance) {
             );
             ready = true
             fastify.log.info(
-                { browserId, pageId, headless: config.headless },
+                { browserId, pageId, headless: config.headless, humanize: config.humanize },
                 'Default browser and page initialized',
             );
         } catch (err) {

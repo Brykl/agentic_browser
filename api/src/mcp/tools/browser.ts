@@ -10,12 +10,15 @@ export function CreateBrowserTool(server: McpServer, browserManager: BrowserMana
         {
             description: 'Create instance of browser',
             inputSchema: z.object({
-                ownerId: z.string()
+                ownerId: z.string(),
+                headless: z.boolean().optional(),
+                engine: z.string().optional(),
+                humanize: z.boolean().optional(),
             })
         },
-        async ({ ownerId }) => {
+        async ({ ownerId, headless = true, engine, humanize }) => {
             try {
-                const browserId = await browserManager.createBrowser(ownerId, { headless: true })
+                const browserId = await browserManager.createBrowser(ownerId, { headless, engine, humanize })
                 return {
                     content: [{ type: 'text', text: `Browser created. browserId: ${browserId}` }],
                 };

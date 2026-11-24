@@ -15,6 +15,7 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 		ownerID  string
 		headless bool
 		engine   string
+		humanize bool
 	)
 
 	cmd := &cobra.Command{
@@ -22,11 +23,16 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 		Short: "Create a new browser session",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			res, err := opts.NewClient().CreateBrowser(cmd.Context(), client.CreateBrowserRequest{
+			req := client.CreateBrowserRequest{
 				OwnerID:  ownerID,
 				Headless: &headless,
 				Engine:   engine,
-			})
+			}
+			if cmd.Flags().Changed("humanize") {
+				req.Humanize = &humanize
+			}
+
+			res, err := opts.NewClient().CreateBrowser(cmd.Context(), req)
 			if err != nil {
 				return err
 			}
@@ -48,6 +54,7 @@ func newCreateCmd(opts *config.Options) *cobra.Command {
 	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Owner identifier (required)")
 	cmd.Flags().BoolVar(&headless, "headless", true, "Run browser in headless mode")
 	cmd.Flags().StringVar(&engine, "engine", "", "Browser engine (e.g. puppeteer, camoufox)")
+	cmd.Flags().BoolVar(&humanize, "humanize", false, "Enable human-like cursor movement and typing")
 	_ = cmd.MarkFlagRequired("owner-id")
 
 	return cmd

@@ -60,9 +60,10 @@ export interface PageInfo {
 export class BrowserManager {
     private readonly engines = new Map<string, BrowserEngine>();
     private readonly defaultEngine: string;
+    private readonly defaultHumanize: boolean;
     private readonly browsers = new Map<string, BrowserSession>();
 
-    constructor(engines: BrowserEngine[], defaultEngine?: string) {
+    constructor(engines: BrowserEngine[], defaultEngine?: string, defaultHumanize = false) {
         if (engines.length === 0) {
             throw new Error('At least one BrowserEngine is required');
         }
@@ -70,6 +71,7 @@ export class BrowserManager {
             this.engines.set(engine.name, engine);
         }
         this.defaultEngine = defaultEngine ?? engines[0]!.name;
+        this.defaultHumanize = defaultHumanize;
         if (!this.engines.has(this.defaultEngine)) {
             throw new Error(`Unknown default engine: ${this.defaultEngine}`);
         }
@@ -86,7 +88,7 @@ export class BrowserManager {
             throw new Error(`Unknown browser engine: ${engineName}`);
         }
 
-        const humanize = config.humanize ?? false;
+        const humanize = config.humanize ?? this.defaultHumanize;
         const browserId = customBrowserId ?? randomUUID();
         const browser = await engine.launch({ ...config, humanize });
 

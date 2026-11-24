@@ -30,7 +30,7 @@ Expected response: `{"ok":true}`.
 
 If the server is not running:
 1. Start `node "<plugin_root>\dist\index.js"` with `run_command` and `IsDaemon: true` (never block on a foreground server).
-   - Optional env vars: `PORT` (default `3777`), `HOST` (default `127.0.0.1`), `BROWSER_ENGINE=camoufox|puppeteer` (default `camoufox`), `AGENTIC_BROWSER_HEADLESS=true|false`, `AGENTIC_BROWSER_DEFAULT_URL`.
+   - Optional env vars: `PORT` (default `3777`), `HOST` (default `127.0.0.1`), `BROWSER_ENGINE=camoufox|puppeteer` (default `camoufox`), `AGENTIC_BROWSER_HEADLESS=true|false`, `AGENTIC_BROWSER_HUMANIZE=true|false` (default `false`), `AGENTIC_BROWSER_DEFAULT_URL`.
 2. Re-check `http://127.0.0.1:3777/api/v1/health` until it returns `{"ok":true}`.
 3. Share the live UI URL `http://localhost:3777` with the user so they can watch and interact with the live browser canvas (mouse, wheel, keyboard, paste, tab switching, and automatic viewport resize).
 
@@ -48,11 +48,11 @@ Use the context commands below when you need multiple sessions/tabs or want to s
 # List browsers (use --json for structured parsing)
 ab browsers list --json
 
-# Set active browser in CLI state (or create/delete one, optionally choosing engine)
+# Set active browser in CLI state (or create/delete one, optionally choosing engine/humanize)
 ab use browser <browser-id>
 ab browsers create --owner-id agent
-ab browsers create --owner-id agent --engine camoufox
-ab browsers create --owner-id agent --engine puppeteer
+ab browsers create --owner-id agent --engine camoufox --humanize
+ab browsers create --owner-id agent --engine puppeteer --humanize=false
 ab browsers delete <browser-id>
 
 # List pages in the active browser, or open a new page (also sets it active)

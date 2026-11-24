@@ -193,4 +193,38 @@ describe('BrowserManager action metadata and snapshot diff', () => {
         state.failWaitTimeout = true;
         await expect(manager.waitPage(browserId, pageId, { text: 'Never' })).rejects.toThrow(WaitTimeoutError);
     });
+
+    it('applies defaultHumanize when omitted and allows per-browser overrides', async () => {
+        const { page } = createMockPage();
+        const launchedConfigs: Array<{ humanize?: boolean }> = [];
+        const driver: BrowserDriver = {
+            newPage: async () => page,
+            close: async () => {},
+            isConnected: () => true,
+            onDisconnected: () => {},
+        };
+        const engine: BrowserEngine = {
+            name: 'mock',
+            launch: async (config) => {
+                launchedConfigs.push({ humanize: config.humanize });
+                return driver;
+            },
+        };
+
+        const manager = new BrowserManager([engine], 'mock', true);
+        const bDefault = await manager.createBrowser('u1', {});
+        const bFalse = await manager.createBrowser('u2', { humanize: false });
+        const bTrue = await manager.createBrowser('u3', { humanize: true });
+
+        expect(launchedConfigs).toEqual([
+            { humanize: true },
+            { humanize: false },
+            { humanize: true },
+        ]);
+
+        const summaries = manager.listBrowsers();
+        expect(summaries.find((b) => b.id === bDefault)?.humanize).toBe(true);
+        expect(summaries.find((b) => b.id === bFalse)?.humanize).toBe(false);
+        expect(summaries.find((b) => b.id === bTrue)?.humanize).toBe(true);
+    });
 });

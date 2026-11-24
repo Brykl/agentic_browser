@@ -4,6 +4,7 @@ package client
 type BrowserInfo struct {
 	ID       string   `json:"id"`
 	Engine   string   `json:"engine,omitempty"`
+	Humanize bool     `json:"humanize"`
 	OwnerID  string   `json:"ownerId"`
 	LastUsed int64    `json:"lastUsed"`
 	PageIDs  []string `json:"pageIds"`
@@ -19,6 +20,7 @@ type CreateBrowserRequest struct {
 	OwnerID  string `json:"ownerId"`
 	Headless *bool  `json:"headless,omitempty"`
 	Engine   string `json:"engine,omitempty"`
+	Humanize *bool  `json:"humanize,omitempty"`
 }
 
 // CreateBrowserResponse is the response from POST /api/v1/browsers.
