@@ -22,11 +22,7 @@ func newScrollCmd(opts *config.Options) *cobra.Command {
 		Short: "Scroll a page by (left, top) pixels or inspect current/available scroll if no offsets are given",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
-			if err != nil {
-				return err
-			}
-			resolvedPageID, err := opts.ResolvePageID(args)
+			resolvedBrowserID, resolvedPageID, err := opts.ResolveTarget(cmd.Context(), browserID, args)
 			if err != nil {
 				return err
 			}
@@ -81,11 +77,7 @@ func newScrollInfoCmd(opts *config.Options) *cobra.Command {
 		Short: "Get current and maximum available scroll offsets of a page",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
-			if err != nil {
-				return err
-			}
-			resolvedPageID, err := opts.ResolvePageID(args)
+			resolvedBrowserID, resolvedPageID, err := opts.ResolveTarget(cmd.Context(), browserID, args)
 			if err != nil {
 				return err
 			}

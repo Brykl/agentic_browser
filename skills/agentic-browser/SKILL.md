@@ -40,6 +40,10 @@ If `dist/index.js` is missing in the source repo, build it first (`pnpm run buil
 
 The server automatically creates a default browser and page on startup.
 
+On a clean machine (empty `state.json`), `ab` read/action commands (`pages list`, `pages create`, `pages update`, `pages snapshot`, `pages click`, `pages fill`, `pages screenshot`, `pages scroll`, `pages reload`) **automatically query `GET /api/v1/browsers`**, select the sole active (or default) browser and page, and persist them in `state.json`. You can jump straight to Step 3 without manually running `browsers list` -> `use browser` -> `pages list` -> `use page`.
+
+Use the context commands below when you need multiple sessions/tabs or want to switch explicitly (note: destructive `browsers delete` and `pages delete` never auto-select from an empty state and require an explicit ID or saved context):
+
 ```powershell
 # List browsers (use --json for structured parsing)
 ab browsers list --json

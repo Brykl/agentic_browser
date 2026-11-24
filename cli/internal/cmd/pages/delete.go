@@ -18,11 +18,11 @@ func newDeleteCmd(opts *config.Options) *cobra.Command {
 		Short:   "Close and delete a page",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
+			resolvedBrowserID, err := opts.ResolveBrowserIDStrict(browserID)
 			if err != nil {
 				return err
 			}
-			resolvedPageID, err := opts.ResolvePageID(args)
+			resolvedPageID, err := opts.ResolvePageIDStrict(resolvedBrowserID, args)
 			if err != nil {
 				return err
 			}

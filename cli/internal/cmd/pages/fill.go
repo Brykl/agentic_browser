@@ -73,11 +73,7 @@ func newFillCmd(opts *config.Options) *cobra.Command {
 				return fmt.Errorf("specify either --ref and --value, or one or more --field ref=value (or --fields-json)")
 			}
 
-			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
-			if err != nil {
-				return err
-			}
-			resolvedPageID, err := opts.ResolvePageID(args)
+			resolvedBrowserID, resolvedPageID, err := opts.ResolveTarget(cmd.Context(), browserID, args)
 			if err != nil {
 				return err
 			}

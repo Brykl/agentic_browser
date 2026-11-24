@@ -20,7 +20,7 @@ func newDeleteCmd(opts *config.Options) *cobra.Command {
 			if len(args) > 0 {
 				argBrowserID = args[0]
 			}
-			resolvedBrowserID, err := opts.ResolveBrowserID(argBrowserID)
+			resolvedBrowserID, err := opts.ResolveBrowserIDStrict(argBrowserID)
 			if err != nil {
 				return err
 			}

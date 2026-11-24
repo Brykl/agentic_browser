@@ -20,11 +20,7 @@ func newSnapshotCmd(opts *config.Options) *cobra.Command {
 		Short: "Capture an accessibility snapshot of a page",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
-			if err != nil {
-				return err
-			}
-			resolvedPageID, err := opts.ResolvePageID(args)
+			resolvedBrowserID, resolvedPageID, err := opts.ResolveTarget(cmd.Context(), browserID, args)
 			if err != nil {
 				return err
 			}

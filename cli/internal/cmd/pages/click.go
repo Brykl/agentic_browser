@@ -27,11 +27,7 @@ func newClickCmd(opts *config.Options) *cobra.Command {
 				return fmt.Errorf("--ref must not be empty")
 			}
 
-			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
-			if err != nil {
-				return err
-			}
-			resolvedPageID, err := opts.ResolvePageID(args)
+			resolvedBrowserID, resolvedPageID, err := opts.ResolveTarget(cmd.Context(), browserID, args)
 			if err != nil {
 				return err
 			}

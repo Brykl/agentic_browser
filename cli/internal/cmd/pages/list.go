@@ -18,7 +18,7 @@ func newListCmd(opts *config.Options) *cobra.Command {
 		Short:   "List pages in a browser session",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			resolvedBrowserID, err := opts.ResolveBrowserID(browserID)
+			resolvedBrowserID, err := opts.ResolveBrowserID(cmd.Context(), browserID)
 			if err != nil {
 				return err
 			}
