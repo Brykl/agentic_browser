@@ -220,13 +220,45 @@ export class CamoufoxPageDriver implements PageDriver {
         }
     }
 
+    /**
+     * Insert text into a focused `contenteditable` element (e.g. Lexical in WhatsApp Web,
+     * Draft.js, Slate) via a synthetic `paste` event, avoiding Firefox/Playwright
+     * `keyboard.insertText` text duplication on rich-text editors.
+     * Returns `true` if handled, or `false` if the active element is a normal input.
+     */
+    private async fillContentEditable(value: string): Promise<boolean> {
+        return await this.page.evaluate((text: string) => {
+            const el = document.activeElement;
+            if (!(el instanceof HTMLElement) || !el.isContentEditable) {
+                return false;
+            }
+            const before = el.textContent ?? '';
+            const dt = new DataTransfer();
+            dt.setData('text/plain', text);
+            const pasteEvent = new ClipboardEvent('paste', {
+                clipboardData: dt,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+            });
+            const notCancelled = el.dispatchEvent(pasteEvent);
+            if (!notCancelled || (el.textContent ?? '') !== before) {
+                return true;
+            }
+            return document.execCommand('insertText', false, text);
+        }, value);
+    }
+
     async fill(ref: string, value: string): Promise<{ filled: boolean; ref: string; value: string }> {
         await this.click(ref, { waitForNavigation: false });
 
-        await this.page.keyboard.press('Control+a');
+        await this.page.keyboard.press('ControlOrMeta+a');
         await this.page.keyboard.press('Backspace');
 
         if (value.length > 0) {
+            if (await this.fillContentEditable(value)) {
+                return { filled: true, ref, value };
+            }
 
             if (this.humanize) {
                 const chars = [...value];
@@ -238,7 +270,7 @@ export class CamoufoxPageDriver implements PageDriver {
                 }
                 return { filled: true, ref, value };
             }
-            await this.page.keyboard.insertText(value)
+            await this.page.keyboard.insertText(value);
             return { filled: true, ref, value };
         }
         return { filled: true, ref, value };
