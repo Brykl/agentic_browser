@@ -104,9 +104,19 @@ func (c *Client) ClickPage(ctx context.Context, pageID string, req ClickPageRequ
 	return &res, nil
 }
 
-// FillPage calls POST /api/v1/browsers/pages/:id/fill.
+// FillPage calls POST /api/v1/browsers/pages/:id/fill for a single field.
 func (c *Client) FillPage(ctx context.Context, pageID string, req FillPageRequest) (*FillPageResponse, error) {
 	var res FillPageResponse
+	path := "/browsers/pages/" + url.PathEscape(pageID) + "/fill"
+	if err := c.doJSON(ctx, http.MethodPost, path, nil, req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+// FillPageFields calls POST /api/v1/browsers/pages/:id/fill for multiple fields in one request.
+func (c *Client) FillPageFields(ctx context.Context, pageID string, req FillFieldsRequest) (*FillFieldsResponse, error) {
+	var res FillFieldsResponse
 	path := "/browsers/pages/" + url.PathEscape(pageID) + "/fill"
 	if err := c.doJSON(ctx, http.MethodPost, path, nil, req, &res); err != nil {
 		return nil, err

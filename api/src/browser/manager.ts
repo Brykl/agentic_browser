@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AgentCursorListener, BrowserDriver, BrowserEngine, BrowserLaunchConfig, FrameStream, PageDriver, InputEvent } from "./types.ts";
+import { type AgentCursorListener, type BrowserDriver, type BrowserEngine, type BrowserLaunchConfig, type FrameStream, type PageDriver, type InputEvent, FillBatchError, type FillFieldResult, type FillFieldInput } from "./types.ts";
 
 
 interface BrowserSession {
@@ -203,6 +203,28 @@ export class BrowserManager {
         return await page.fill(ref, value);
     }
 
+    async fillFields(
+        browserId: string,
+        pageId: string,
+        fields: FillFieldInput[],
+    ): Promise<FillFieldResult[] | undefined> {
+        const page = this.getPageDriver(browserId, pageId);
+        if (!page) return undefined;
+
+        const completed: FillFieldResult[] = [];
+
+        for (const { ref, value } of fields) {
+            try {
+                const res = await page.fill(ref, value);
+                completed.push(res);
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'Fill failed';
+                throw new FillBatchError(message, ref, completed);
+            }
+        }
+
+        return completed;
+    }
     async availableXYscroll(browserId: string, pageId: string) {
         const page = this.getPageDriver(browserId, pageId);
         if (!page) return undefined;

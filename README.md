@@ -59,6 +59,7 @@ pnpm run start
 ab browsers list --json
 ab pages create --url "https://example.com"
 ab pages snapshot
+ab pages fill -f e8="user@example.com" -f e9="secret"
 ab pages screenshot
 ```
 

@@ -101,20 +101,47 @@ type ClickPageResponse struct {
 	Y         float64 `json:"y"`
 }
 
-// FillPageRequest is the payload for POST /api/v1/browsers/pages/:id/fill.
+// FillPageRequest is the payload for POST /api/v1/browsers/pages/:id/fill (single field).
 type FillPageRequest struct {
 	BrowserID string `json:"browserId"`
 	Ref       string `json:"ref"`
 	Value     string `json:"value"`
 }
 
-// FillPageResponse is the response from POST /api/v1/browsers/pages/:id/fill.
+// FillPageResponse is the response from POST /api/v1/browsers/pages/:id/fill (single field).
 type FillPageResponse struct {
 	BrowserID string `json:"browserId"`
 	PageID    string `json:"pageId"`
 	Filled    bool   `json:"filled"`
 	Ref       string `json:"ref"`
 	Value     string `json:"value"`
+}
+
+// FillField represents a single ref/value pair in a batch fill request.
+type FillField struct {
+	Ref   string `json:"ref"`
+	Value string `json:"value"`
+}
+
+// FillFieldResult represents a single field outcome in a batch fill response.
+type FillFieldResult struct {
+	Filled bool   `json:"filled"`
+	Ref    string `json:"ref"`
+	Value  string `json:"value"`
+}
+
+// FillFieldsRequest is the payload for POST /api/v1/browsers/pages/:id/fill (batch mode).
+type FillFieldsRequest struct {
+	BrowserID string      `json:"browserId"`
+	Fields    []FillField `json:"fields"`
+}
+
+// FillFieldsResponse is the response from POST /api/v1/browsers/pages/:id/fill (batch mode).
+type FillFieldsResponse struct {
+	BrowserID string            `json:"browserId"`
+	PageID    string            `json:"pageId"`
+	Filled    bool              `json:"filled"`
+	Results   []FillFieldResult `json:"results"`
 }
 
 // ReloadPageRequest is the payload for POST /api/v1/browsers/pages/:id/reload.

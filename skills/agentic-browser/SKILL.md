@@ -76,6 +76,9 @@ ab pages screenshot
 # 2. Act using ref IDs from the latest snapshot
 ab pages click --ref e5
 ab pages fill --ref e8 --value "search query"
+# Fill multiple form fields in a single request (prefer this over repeated fill calls)
+ab pages fill -f e8="user@example.com" -f e9="secret"
+ab pages fill --fields-json '[{"ref":"e8","value":"line1\nline2"}]'
 ab pages scroll --top 500
 ab pages scroll-info
 
@@ -86,5 +89,6 @@ ab pages reload
 
 **Important rules:**
 - Element `[ref]` mappings are cleared on page navigation (`framenavigated`). Always run `pages snapshot` again after navigating, reloading, or clicking elements that change the page.
+- When filling multi-field forms, pass multiple `-f ref=value` flags (or `--fields-json`) to `ab pages fill` so all fields are filled in one API call.
 - Prefer `--json` when you need IDs or structured output.
 - Clean up extra tabs or browsers when done with `ab pages delete <page-id>` or `ab browsers delete <browser-id>`.

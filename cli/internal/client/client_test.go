@@ -98,9 +98,40 @@ func TestClientBrowsersAndPages(t *testing.T) {
 			})
 
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/browsers/pages/p1/fill":
-			var body client.FillPageRequest
+			var body struct {
+				BrowserID string             `json:"browserId"`
+				Ref       string             `json:"ref"`
+				Value     string             `json:"value"`
+				Fields    []client.FillField `json:"fields"`
+			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatalf("decode fill page: %v", err)
+			}
+			if len(body.Fields) > 0 {
+				if body.Fields[0].Ref == "bad" {
+					w.WriteHeader(http.StatusBadRequest)
+					_ = json.NewEncoder(w).Encode(map[string]any{
+						"error":     "Ref [bad] not found",
+						"failedRef": "bad",
+						"completed": []client.FillFieldResult{},
+					})
+					return
+				}
+				results := make([]client.FillFieldResult, 0, len(body.Fields))
+				for _, f := range body.Fields {
+					results = append(results, client.FillFieldResult{
+						Filled: true,
+						Ref:    f.Ref,
+						Value:  f.Value,
+					})
+				}
+				_ = json.NewEncoder(w).Encode(client.FillFieldsResponse{
+					BrowserID: body.BrowserID,
+					PageID:    "p1",
+					Filled:    true,
+					Results:   results,
+				})
+				return
 			}
 			_ = json.NewEncoder(w).Encode(client.FillPageResponse{
 				BrowserID: body.BrowserID,
@@ -217,6 +248,25 @@ func TestClientBrowsersAndPages(t *testing.T) {
 	fillRes, err := c.FillPage(ctx, "p1", client.FillPageRequest{BrowserID: "b1", Ref: "e2", Value: "hello"})
 	if err != nil || !fillRes.Filled || fillRes.Ref != "e2" || fillRes.Value != "hello" {
 		t.Fatalf("FillPage unexpected: res=%+v err=%v", fillRes, err)
+	}
+
+	fillBatchRes, err := c.FillPageFields(ctx, "p1", client.FillFieldsRequest{
+		BrowserID: "b1",
+		Fields: []client.FillField{
+			{Ref: "e8", Value: "user@example.com"},
+			{Ref: "e9", Value: "secret=123"},
+		},
+	})
+	if err != nil || !fillBatchRes.Filled || len(fillBatchRes.Results) != 2 || fillBatchRes.Results[1].Value != "secret=123" {
+		t.Fatalf("FillPageFields unexpected: res=%+v err=%v", fillBatchRes, err)
+	}
+
+	_, err = c.FillPageFields(ctx, "p1", client.FillFieldsRequest{
+		BrowserID: "b1",
+		Fields:    []client.FillField{{Ref: "bad", Value: "x"}},
+	})
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusBadRequest || apiErr.Message != "Ref [bad] not found (failedRef: bad, completed: 0)" {
+		t.Fatalf("expected 400 batch APIError, got: %v", err)
 	}
 
 	reloadRes, err := c.ReloadPage(ctx, "b1", "p1")

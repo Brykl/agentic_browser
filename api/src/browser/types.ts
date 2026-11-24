@@ -63,3 +63,27 @@ export type InputEvent =
     | { t: "wheel"; x: number; y: number; dx: number; dy: number }
     | { t: "key"; kind: "down" | "up"; key: string; code: string; mods: number }
     | { t: "text"; text: string };
+
+
+export interface FillFieldInput {
+    ref: string;
+    value: string;
+}
+
+export interface FillFieldResult {
+    filled: boolean;
+    ref: string;
+    value: string;
+}
+
+export class FillBatchError extends Error {
+    readonly failedRef: string;
+    readonly completed: FillFieldResult[];
+
+    constructor(message: string, failedRef: string, completed: FillFieldResult[]) {
+        super(message);
+        this.name = 'FillBatchError';
+        this.failedRef = failedRef;
+        this.completed = completed;
+    }
+}

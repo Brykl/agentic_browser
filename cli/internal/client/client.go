@@ -131,15 +131,21 @@ func (c *Client) doRaw(ctx context.Context, method, path string, query url.Value
 
 func parseAPIError(status int, raw []byte) error {
 	var errBody struct {
-		Error   string `json:"error"`
-		Message string `json:"message"`
+		Error     string            `json:"error"`
+		Message   string            `json:"message"`
+		FailedRef string            `json:"failedRef"`
+		Completed []FillFieldResult `json:"completed"`
 	}
 	if err := json.Unmarshal(raw, &errBody); err == nil {
-		if errBody.Error != "" {
-			return &APIError{StatusCode: status, Message: errBody.Error}
+		msg := errBody.Error
+		if msg == "" {
+			msg = errBody.Message
 		}
-		if errBody.Message != "" {
-			return &APIError{StatusCode: status, Message: errBody.Message}
+		if msg != "" {
+			if errBody.FailedRef != "" {
+				msg = fmt.Sprintf("%s (failedRef: %s, completed: %d)", msg, errBody.FailedRef, len(errBody.Completed))
+			}
+			return &APIError{StatusCode: status, Message: msg}
 		}
 	}
 	msg := strings.TrimSpace(string(raw))
