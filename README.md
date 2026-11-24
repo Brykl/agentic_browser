@@ -6,7 +6,7 @@ Multi-engine virtual browser (**Camoufox** anti-detect Firefox + **Puppeteer** C
 
 - **API + Static UI (`api/`)**: Fastify server (`http://127.0.0.1:3777`) managing Camoufox and Puppeteer sessions via a pluggable `BrowserEngine` architecture, compact & full accessibility snapshots (`[ref=eN]`), numbered PNG screenshots (`screenshots/`), page actions, push-based binary JPEG screencast + interactive input WebSocket (`/api/v1/ws`), and serving the built React UI (`ui/dist/`).
 - **Web UI (`ui/`)**: React + Vite interactive live browser viewer (tab switcher, URL bar, binary `createImageBitmap` frame stream, live mouse/wheel/keyboard/paste input including non-US layouts, and automatic viewport resize).
-- **CLI (`cli/`, prebuilt at `bin/ab.exe`)**: Go binary (`windows/amd64` prebuilt in git) for controlling browsers and pages (`browsers`, `pages`, `use`, `status`, `snapshot`, `screenshot`, `click`, `fill`, `scroll`). When `state.json` is empty, read/action commands automatically query `GET /api/v1/browsers` to select and persist the sole active (or default) browser and page; destructive `delete` commands still require an explicit ID or saved state.
+- **CLI (`cli/`, prebuilt at `bin/ab.exe`)**: Go binary (`windows/amd64` prebuilt in git) for controlling browsers and pages (`browsers`, `pages`, `use`, `status`, `snapshot`, `screenshot`, `click`, `fill`, `wait`, `scroll`). When `state.json` is empty, read/action commands automatically query `GET /api/v1/browsers` to select and persist the sole active (or default) browser and page; destructive `delete` commands still require an explicit ID or saved state.
 - **Antigravity Plugin (`plugin.json`, `skills/`, `rules/`)**: Teaches Antigravity agents how to start the API/UI server and control the virtual browser via the CLI.
 
 ---
@@ -60,6 +60,7 @@ ab browsers list --json
 ab pages create --url "https://example.com" --snapshot
 ab pages fill -f e8="user@example.com" -f e9="secret" --diff
 ab pages click --ref e10 --snapshot
+ab pages wait --url "/dashboard" --text "Welcome" --timeout 15s --diff
 ab pages screenshot
 ```
 
@@ -87,6 +88,6 @@ ab pages screenshot
 | `AGENTIC_BROWSER_HEADLESS` | `true` | Set to `false` or `0` to launch visible Chrome windows |
 | `AGENTIC_BROWSER_DEFAULT_URL` | *(blank)* | Optional initial URL opened in the default page on server startup |
 | `AGENTIC_BROWSER_UI_DIR` | *(auto)* | Override path to built `ui/dist` static files |
-| `AGENTIC_BROWSER_URL` | `http://localhost:3777` | API base URL used by `ab.exe` (recommended over `--url` when running `pages create`/`update`) |
+| `AGENTIC_BROWSER_URL` | `http://localhost:3777` | API base URL used by `ab.exe` (recommended over `--url` when running `pages create`/`update`/`wait`) |
 | `AGB_BROWSER_ID` | *(from state)* | Override active browser ID for CLI commands |
 | `AGB_PAGE_ID` | *(from state)* | Override active page ID for CLI commands |

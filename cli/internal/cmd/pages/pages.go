@@ -25,6 +25,7 @@ func NewCmd(opts *config.Options) *cobra.Command {
 		newScreenshotCmd(opts),
 		newClickCmd(opts),
 		newFillCmd(opts),
+		newWaitCmd(opts),
 		newScrollCmd(opts),
 		newScrollInfoCmd(opts),
 	)

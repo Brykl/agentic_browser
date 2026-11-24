@@ -40,7 +40,7 @@ If `dist/index.js` is missing in the source repo, build it first (`pnpm run buil
 
 The server automatically creates a default browser and page on startup.
 
-On a clean machine (empty `state.json`), `ab` read/action commands (`pages list`, `pages create`, `pages update`, `pages snapshot`, `pages click`, `pages fill`, `pages screenshot`, `pages scroll`, `pages reload`) **automatically query `GET /api/v1/browsers`**, select the sole active (or default) browser and page, and persist them in `state.json`. You can jump straight to Step 3 without manually running `browsers list` -> `use browser` -> `pages list` -> `use page`.
+On a clean machine (empty `state.json`), `ab` read/action commands (`pages list`, `pages create`, `pages update`, `pages snapshot`, `pages click`, `pages fill`, `pages wait`, `pages screenshot`, `pages scroll`, `pages reload`) **automatically query `GET /api/v1/browsers`**, select the sole active (or default) browser and page, and persist them in `state.json`. You can jump straight to Step 3 without manually running `browsers list` -> `use browser` -> `pages list` -> `use page`.
 
 Use the context commands below when you need multiple sessions/tabs or want to switch explicitly (note: destructive `browsers delete` and `pages delete` never auto-select from an empty state and require an explicit ID or saved context):
 
@@ -67,7 +67,7 @@ To avoid state collisions across concurrent agents, pass `--browser-id <id>`, `[
 
 ## Step 3: Inspect and Interact via CLI
 
-All page actions (`click`, `fill`, `update`, `reload`, `scroll`, `create`) immediately return the resulting `url`, `title`, and `navigated` status. Pass `--snapshot` (compact), `--diff` (line-level diff against the previous snapshot, automatically falling back to compact on navigation or large changes), or `--full-snapshot` to get the updated accessibility tree in the same call instead of running separate `get` and `snapshot` commands:
+All page actions (`click`, `fill`, `wait`, `update`, `reload`, `scroll`, `create`) immediately return the resulting `url`, `title`, and `navigated` status. After `click`, the driver briefly checks whether navigation started (~250ms) and waits for `domcontentloaded` before returning. Pass `--snapshot` (compact), `--diff` (line-level diff against the previous snapshot, automatically falling back to compact on navigation or large changes), or `--full-snapshot` to get the updated accessibility tree in the same call instead of running separate `get` and `snapshot` commands:
 
 ```powershell
 # 1. Capture compact accessibility tree with [ref=eN] IDs (or --full for the raw uncompacted tree)
@@ -87,13 +87,19 @@ ab pages fill --fields-json '[{"ref":"e8","value":"line1\nline2"}]'
 ab pages scroll --top 500 --diff
 ab pages scroll-info
 
-# 3. Navigate or reload (with immediate snapshot)
+# 3. Wait for async navigation, redirects, load state, or visible text
+ab pages wait --url "/dashboard" --timeout 15s --snapshot
+ab pages wait --text "Order confirmed" --load networkidle --diff
+ab pages wait --load domcontentloaded
+
+# 4. Navigate or reload (with immediate snapshot)
 ab pages update --url "https://example.com/next" --snapshot
 ab pages reload --snapshot
 ```
 
 **Important rules:**
-- Element `[ref]` mappings are cleared on page navigation (`framenavigated`). Prefer passing `--snapshot` or `--diff` directly on `click`, `fill`, `update`, `reload`, `scroll`, or `create` to avoid separate `pages get` + `pages snapshot` round-trips.
+- Element `[ref]` mappings are cleared on page navigation (`framenavigated`). Prefer passing `--snapshot` or `--diff` directly on `click`, `fill`, `wait`, `update`, `reload`, `scroll`, or `create` to avoid separate `pages get` + `pages snapshot` round-trips.
+- For SPA transitions, redirects, or async loading spinners after a click, use `ab pages wait` (`--url` supports substring, `*` glob, or `/regex/`; `--text` waits for visible text; `--load` accepts `domcontentloaded`, `load`, or `networkidle`) instead of polling `pages snapshot` in a loop.
 - When filling multi-field forms, pass multiple `-f ref=value` flags (or `--fields-json`) to `ab pages fill` so all fields are filled in one API call.
 - Prefer `--json` when you need IDs or structured output.
 - Clean up extra tabs or browsers when done with `ab pages delete <page-id>` or `ab browsers delete <browser-id>`.

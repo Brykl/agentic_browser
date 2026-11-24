@@ -1,7 +1,18 @@
 import { randomInt } from 'node:crypto';
-import type { CDPSession, Page } from 'puppeteer';
+import type { CDPSession, Frame, Page } from 'puppeteer';
 import type { Protocol } from 'puppeteer-core';
-import type { AgentCursorEvent, AgentCursorListener, FrameListener, FrameStream, PageDriver, InputEvent } from '../../types.ts';
+import type {
+    AgentCursorEvent,
+    AgentCursorListener,
+    ClickOptions,
+    ClickResult,
+    FrameListener,
+    FrameStream,
+    InputEvent,
+    PageDriver,
+    WaitOptions,
+    WaitResult,
+} from '../../types.ts';
 import {
     IGNORED_KEYS,
     MOD_CTRL,
@@ -15,6 +26,16 @@ import {
 import { compactAXTreeForLLM, optimizeAXTreeForLLM } from './ax-tree.ts';
 import { nextScreenshotPath } from '../../screenshot.ts';
 import { path } from "ghost-cursor";
+import {
+    DEFAULT_CLICK_NAV_DETECT_MS,
+    DEFAULT_CLICK_NAV_TIMEOUT_MS,
+    WaitTimeoutError,
+    clampWaitTimeout,
+    isTimeoutError,
+    matchUrlPattern,
+    remainingMs,
+    waitSleep,
+} from '../../wait.ts';
 
 export class PuppeteerPageDriver implements PageDriver {
     private readonly page: Page;
@@ -94,13 +115,29 @@ export class PuppeteerPageDriver implements PageDriver {
         return text;
     }
 
-    async click(ref: string): Promise<{ clicked: true; ref: string; x?: number; y?: number }> {
+    async click(ref: string, options?: ClickOptions): Promise<ClickResult> {
         const backendNodeId = this.refMap.get(ref);
         if (!backendNodeId) {
             throw new Error(`Ref [${ref}] not found. Take a new snapshot.`);
         }
 
+        const waitForNav = options?.waitForNavigation ?? true;
+        const detectMs = options?.navigationDetectMs ?? DEFAULT_CLICK_NAV_DETECT_MS;
+        const navTimeoutMs = options?.navigationTimeoutMs ?? DEFAULT_CLICK_NAV_TIMEOUT_MS;
+
         const cdp = await this.page.createCDPSession();
+        let frameNavigated = false;
+        let resolveNavStarted: (() => void) | undefined;
+        const navStarted = new Promise<void>((resolve) => {
+            resolveNavStarted = resolve;
+        });
+        const onFrameNavigated = (frame: Frame) => {
+            if (frame === this.page.mainFrame()) {
+                frameNavigated = true;
+                resolveNavStarted?.();
+            }
+        };
+
         try {
             await this.page.bringToFront().catch(() => { });
             await cdp.send('DOM.scrollIntoViewIfNeeded', { backendNodeId });
@@ -114,6 +151,16 @@ export class PuppeteerPageDriver implements PageDriver {
             const cx = Math.round(x);
             const cy = Math.round(y);
 
+            const urlBefore = this.page.url();
+            let navPromise: Promise<boolean> | null = null;
+            if (waitForNav) {
+                this.page.on('framenavigated', onFrameNavigated);
+                navPromise = this.page
+                    .waitForNavigation({ waitUntil: 'domcontentloaded', timeout: navTimeoutMs })
+                    .then(() => true)
+                    .catch(() => false);
+            }
+
             this.emitAgentCursor({ kind: 'move', x: cx, y: cy });
             this.emitAgentCursor({ kind: 'down', x: cx, y: cy });
             try {
@@ -121,14 +168,31 @@ export class PuppeteerPageDriver implements PageDriver {
             } finally {
                 this.emitAgentCursor({ kind: 'up', x: cx, y: cy });
             }
-            return { clicked: true, ref, x, y };
+
+            if (!waitForNav || this.page.isClosed()) {
+                return { clicked: true, ref, x, y, navigated: false };
+            }
+
+            if (!frameNavigated && this.page.url() === urlBefore && detectMs > 0) {
+                await Promise.race([navStarted, waitSleep(detectMs)]);
+            }
+
+            const navigated = frameNavigated || (!this.page.isClosed() && this.page.url() !== urlBefore);
+            if (navigated && navPromise && !this.page.isClosed()) {
+                await navPromise;
+            }
+
+            return { clicked: true, ref, x, y, navigated };
         } finally {
+            if (waitForNav) {
+                this.page.off('framenavigated', onFrameNavigated);
+            }
             await cdp.detach().catch(() => { });
         }
     }
 
     async fill(ref: string, value: string): Promise<{ filled: true; ref: string; value: string }> {
-        await this.click(ref);
+        await this.click(ref, { waitForNavigation: false });
         await this.page.bringToFront().catch(() => { });
 
         await this.page.keyboard.down('Control');
@@ -145,6 +209,92 @@ export class PuppeteerPageDriver implements PageDriver {
         }
 
         return { filled: true, ref, value };
+    }
+
+    private async waitForUrlPattern(pattern: string, deadline: number, totalTimeoutMs: number): Promise<void> {
+        if (matchUrlPattern(this.page.url(), pattern)) return;
+
+        await new Promise<void>((resolve, reject) => {
+            const left = deadline - Date.now();
+            if (left <= 0) {
+                reject(new WaitTimeoutError(`Wait timed out after ${totalTimeoutMs}ms waiting for url matching "${pattern}"`));
+                return;
+            }
+
+            const check = () => {
+                if (this.page.isClosed()) {
+                    cleanup();
+                    reject(new Error('Page closed while waiting for URL'));
+                    return;
+                }
+                if (matchUrlPattern(this.page.url(), pattern)) {
+                    cleanup();
+                    resolve();
+                }
+            };
+
+            const onNav = (frame: Frame) => {
+                if (frame === this.page.mainFrame()) check();
+            };
+
+            const pollTimer = setInterval(check, 100);
+            const timeoutTimer = setTimeout(() => {
+                cleanup();
+                reject(new WaitTimeoutError(`Wait timed out after ${totalTimeoutMs}ms waiting for url matching "${pattern}"`));
+            }, left);
+
+            const cleanup = () => {
+                clearInterval(pollTimer);
+                clearTimeout(timeoutTimer);
+                this.page.off('framenavigated', onNav);
+            };
+
+            this.page.on('framenavigated', onNav);
+            check();
+        });
+    }
+
+    async wait(options: WaitOptions): Promise<WaitResult> {
+        const startedAt = Date.now();
+        const timeout = clampWaitTimeout(options.timeout);
+        const deadline = startedAt + timeout;
+
+        try {
+            if (options.url) {
+                await this.waitForUrlPattern(options.url, deadline, timeout);
+            }
+
+            if (options.load) {
+                const left = remainingMs(deadline, `load state "${options.load}"`, timeout);
+                if (options.load === 'networkidle') {
+                    await this.page.waitForNetworkIdle({ timeout: left });
+                } else if (options.load === 'load') {
+                    await this.page.waitForFunction(() => document.readyState === 'complete', { timeout: left });
+                } else {
+                    await this.page.waitForFunction(
+                        () => document.readyState === 'interactive' || document.readyState === 'complete',
+                        { timeout: left },
+                    );
+                }
+            }
+
+            if (options.text) {
+                const left = remainingMs(deadline, `text "${options.text}"`, timeout);
+                await this.page.waitForFunction(
+                    (needle: string) => Boolean(document.body?.innerText?.includes(needle)),
+                    { timeout: left },
+                    options.text,
+                );
+            }
+        } catch (err) {
+            if (err instanceof WaitTimeoutError) throw err;
+            if (isTimeoutError(err)) {
+                throw new WaitTimeoutError(`Wait timed out after ${timeout}ms: ${err instanceof Error ? err.message : String(err)}`);
+            }
+            throw err;
+        }
+
+        return { waited: true, elapsedMs: Date.now() - startedAt };
     }
 
     async getScroll(): Promise<{ x: number; y: number; maxX: number; maxY: number }> {

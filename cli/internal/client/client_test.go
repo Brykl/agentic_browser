@@ -174,6 +174,28 @@ func TestClientBrowsersAndPages(t *testing.T) {
 				Y:         body.Top,
 			})
 
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/browsers/pages/p1/wait":
+			var body client.WaitPageRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decode wait page: %v", err)
+			}
+			if body.Text == "timeout" {
+				w.WriteHeader(http.StatusRequestTimeout)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "Wait timed out after 500ms"})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(client.WaitPageResponse{
+				BrowserID: body.BrowserID,
+				PageID:    "p1",
+				Waited:    true,
+				ElapsedMs: 125,
+				PageActionMeta: client.PageActionMeta{
+					URL:       "https://example.com/dashboard",
+					Title:     "Dashboard",
+					Navigated: true,
+				},
+			})
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -282,5 +304,20 @@ func TestClientBrowsersAndPages(t *testing.T) {
 	scrollRes, err := c.ScrollPage(ctx, "p1", client.ScrollPageRequest{BrowserID: "b1", Left: 10, Top: 250})
 	if err != nil || scrollRes.X != 10 || scrollRes.Y != 250 {
 		t.Fatalf("ScrollPage unexpected: res=%+v err=%v", scrollRes, err)
+	}
+
+	waitRes, err := c.WaitPage(ctx, "p1", client.WaitPageRequest{
+		BrowserID: "b1",
+		URL:       "/dashboard",
+		Load:      "domcontentloaded",
+		Timeout:   5000,
+	})
+	if err != nil || !waitRes.Waited || waitRes.ElapsedMs != 125 || waitRes.URL != "https://example.com/dashboard" {
+		t.Fatalf("WaitPage unexpected: res=%+v err=%v", waitRes, err)
+	}
+
+	_, err = c.WaitPage(ctx, "p1", client.WaitPageRequest{BrowserID: "b1", Text: "timeout", Timeout: 500})
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusRequestTimeout {
+		t.Fatalf("expected 408 APIError, got: %v", err)
 	}
 }

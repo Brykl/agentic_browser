@@ -164,3 +164,13 @@ func (c *Client) ScreenshotPage(ctx context.Context, browserID, pageID string) (
 	}
 	return &res, nil
 }
+
+// WaitPage calls POST /api/v1/browsers/pages/:id/wait.
+func (c *Client) WaitPage(ctx context.Context, pageID string, req WaitPageRequest) (*WaitPageResponse, error) {
+	var res WaitPageResponse
+	path := "/browsers/pages/" + url.PathEscape(pageID) + "/wait"
+	if err := c.doJSON(ctx, http.MethodPost, path, nil, req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

@@ -12,6 +12,7 @@ import { GetPageScroll } from './id/scroll/get.ts'
 import { ScrollPage } from './id/scroll/post.ts'
 import { ReloadPage } from './id/reload/post.ts'
 import { ScreenshotPage } from './id/screenshot/post.ts'
+import { WaitPage } from './id/wait/post.ts'
 
 export async function PagesRoutesV1(fastify: FastifyInstance, { browserManager }: { browserManager: BrowserManager }) {
     GetListOfPages('/', fastify, { browserManager })
@@ -22,6 +23,7 @@ export async function PagesRoutesV1(fastify: FastifyInstance, { browserManager }
     ScreenshotPage('/:id/screenshot', fastify, { browserManager })
     ClickPage('/:id/click', fastify, { browserManager })
     FillPage('/:id/fill', fastify, { browserManager })
+    WaitPage('/:id/wait', fastify, { browserManager })
     GetPageScroll('/:id/scroll', fastify, { browserManager })
     ScrollPage('/:id/scroll', fastify, { browserManager })
     ReloadPage('/:id/reload', fastify, { browserManager })

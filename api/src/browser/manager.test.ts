@@ -1,10 +1,19 @@
 import { describe, expect, it } from '@jest/globals';
 import { BrowserManager } from './manager.ts';
-import type { BrowserDriver, BrowserEngine, PageDriver } from './types.ts';
+import type { BrowserDriver, BrowserEngine, ClickOptions, PageDriver, WaitOptions } from './types.ts';
 import { FillBatchError } from './types.ts';
+import { WaitTimeoutError } from './wait.ts';
 
 function createMockPage(initial = { url: 'https://example.com', title: 'Home', snapshot: '[ref=e1] button "Go"\n[ref=e2] textbox "Name"\n[ref=e3] link "A"\n[ref=e4] link "B"' }) {
-    const state = { ...initial, fullSnapshot: `- root:\n  ${initial.snapshot}`, failTitleOnce: false };
+    const state = {
+        ...initial,
+        fullSnapshot: `- root:\n  ${initial.snapshot}`,
+        failTitleOnce: false,
+        clickNavigated: false,
+        lastClickOpts: undefined as ClickOptions | undefined,
+        lastWaitOpts: undefined as WaitOptions | undefined,
+        failWaitTimeout: false,
+    };
 
     const page: PageDriver = {
         url: () => state.url,
@@ -23,12 +32,26 @@ function createMockPage(initial = { url: 'https://example.com', title: 'Home', s
         close: async () => {},
         snapshot: async () => state.snapshot,
         fullSnapshot: async () => state.fullSnapshot,
-        click: async (ref: string) => ({ clicked: true as const, ref, x: 10, y: 20 }),
+        click: async (ref: string, options?: ClickOptions) => {
+            state.lastClickOpts = options;
+            return { clicked: true as const, ref, x: 10, y: 20, navigated: state.clickNavigated };
+        },
         fill: async (ref: string, value: string) => {
             if (ref === 'missing') {
                 throw new Error('Ref [missing] not found');
             }
             return { filled: true, ref, value };
+        },
+        wait: async (options: WaitOptions) => {
+            state.lastWaitOpts = options;
+            if (state.failWaitTimeout) {
+                throw new WaitTimeoutError('Wait timed out after 1000ms');
+            }
+            if (options.url) {
+                state.url = `https://example.com${options.url.startsWith('/') ? options.url : '/' + options.url}`;
+                state.title = 'Dashboard';
+            }
+            return { waited: true as const, elapsedMs: 42 };
         },
         getScroll: async () => ({ x: 0, y: 0, maxX: 0, maxY: 1000 }),
         scrollBy: async (left: number, top: number) => ({ x: left, y: top }),
@@ -129,5 +152,45 @@ describe('BrowserManager action metadata and snapshot diff', () => {
                 { ref: 'missing', value: 'x' },
             ]),
         ).rejects.toThrow(FillBatchError);
+    });
+
+    it('preserves driver-reported navigation on click even when URL is unchanged', async () => {
+        const { page, state } = createMockPage();
+        state.clickNavigated = true;
+        const manager = createMockManager(page);
+        const browserId = await manager.createBrowser('u1', {});
+        const pageId = await manager.createPage(browserId);
+
+        const res = await manager.clickButton(browserId, pageId, 'e1');
+        expect(res?.navigated).toBe(true);
+        expect(res?.url).toBe('https://example.com');
+    });
+
+    it('waitPage returns elapsedMs, metadata, optional snapshot, and propagates WaitTimeoutError', async () => {
+        const { page, state } = createMockPage();
+        const manager = createMockManager(page);
+        const browserId = await manager.createBrowser('u1', {});
+        const pageId = await manager.createPage(browserId);
+
+        state.snapshot = '[ref=e1] heading "Dashboard"';
+        const res = await manager.waitPage(
+            browserId,
+            pageId,
+            { url: '/dashboard', load: 'domcontentloaded', timeout: 5000 },
+            { snapshot: 'compact' },
+        );
+        expect(res).toMatchObject({
+            waited: true,
+            elapsedMs: 42,
+            url: 'https://example.com/dashboard',
+            title: 'Dashboard',
+            navigated: true,
+            snapshotMode: 'compact',
+            snapshot: '[ref=e1] heading "Dashboard"',
+        });
+        expect(state.lastWaitOpts).toEqual({ url: '/dashboard', load: 'domcontentloaded', timeout: 5000 });
+
+        state.failWaitTimeout = true;
+        await expect(manager.waitPage(browserId, pageId, { text: 'Never' })).rejects.toThrow(WaitTimeoutError);
     });
 });

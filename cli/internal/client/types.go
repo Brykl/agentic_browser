@@ -217,3 +217,22 @@ type ScreenshotPageResponse struct {
 	PageID    string `json:"pageId"`
 	Path      string `json:"path"`
 }
+
+// WaitPageRequest is the payload for POST /api/v1/browsers/pages/:id/wait.
+type WaitPageRequest struct {
+	BrowserID string `json:"browserId"`
+	URL       string `json:"url,omitempty"`
+	Text      string `json:"text,omitempty"`
+	Load      string `json:"load,omitempty"`
+	Timeout   int    `json:"timeout,omitempty"`
+	Snapshot  string `json:"snapshot,omitempty"`
+}
+
+// WaitPageResponse is the response from POST /api/v1/browsers/pages/:id/wait.
+type WaitPageResponse struct {
+	BrowserID string `json:"browserId"`
+	PageID    string `json:"pageId"`
+	Waited    bool   `json:"waited"`
+	ElapsedMs int64  `json:"elapsedMs"`
+	PageActionMeta
+}

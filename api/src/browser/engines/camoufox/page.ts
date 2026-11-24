@@ -1,6 +1,17 @@
 import { randomInt } from "node:crypto";
-import type { AgentCursorEvent, AgentCursorListener, FrameListener, FrameStream, PageDriver, InputEvent } from "../../types.ts";
-import type { Page } from "playwright-core";
+import type {
+    AgentCursorEvent,
+    AgentCursorListener,
+    ClickOptions,
+    ClickResult,
+    FrameListener,
+    FrameStream,
+    InputEvent,
+    PageDriver,
+    WaitOptions,
+    WaitResult,
+} from "../../types.ts";
+import type { Frame, Page } from "playwright-core";
 import { compactAriaSnapshot } from "./aria-snapshot.ts";
 import {
     IGNORED_KEYS,
@@ -14,6 +25,16 @@ import {
 } from "../../input.ts";
 import { nextScreenshotPath } from "../../screenshot.ts";
 import { humanPath, pointInside, rand, sleep, visiblePart } from "../../human.ts";
+import {
+    DEFAULT_CLICK_NAV_DETECT_MS,
+    DEFAULT_CLICK_NAV_TIMEOUT_MS,
+    WaitTimeoutError,
+    clampWaitTimeout,
+    isTimeoutError,
+    matchUrlPattern,
+    remainingMs,
+    waitSleep,
+} from "../../wait.ts";
 
 /** Target frame budget while the page is actively changing (~25 FPS). */
 const ACTIVE_FRAME_MS = 40;
@@ -71,60 +92,101 @@ export class CamoufoxPageDriver implements PageDriver {
     async fullSnapshot(): Promise<string> {
         return await this.page.ariaSnapshot({ mode: 'ai' });
     }
-    async click(ref: string): Promise<{ clicked: true; ref: string; x?: number; y?: number }> {
+    async click(ref: string, options?: ClickOptions): Promise<ClickResult> {
         await this.page.bringToFront().catch(() => { });
         const locator = this.page.locator(`aria-ref=${ref}`);
+        const waitForNav = options?.waitForNavigation ?? true;
+        const detectMs = options?.navigationDetectMs ?? DEFAULT_CLICK_NAV_DETECT_MS;
+        const navTimeoutMs = options?.navigationTimeoutMs ?? DEFAULT_CLICK_NAV_TIMEOUT_MS;
 
-        if (!this.humanize) {
-            await locator.scrollIntoViewIfNeeded();
-            const box = await locator.boundingBox();
-            const x = box ? Math.round(box.x + box.width / 2) : undefined;
-            const y = box ? Math.round(box.y + box.height / 2) : undefined;
-            if (x !== undefined && y !== undefined) {
-                this.emitAgentCursor({ kind: 'move', x, y });
-                this.emitAgentCursor({ kind: 'down', x, y });
+        const urlBefore = this.page.url();
+        let frameNavigated = false;
+        let resolveNavStarted: (() => void) | undefined;
+        const navStarted = new Promise<void>((resolve) => {
+            resolveNavStarted = resolve;
+        });
+        const onFrameNavigated = (frame: Frame) => {
+            if (frame === this.page.mainFrame()) {
+                frameNavigated = true;
+                resolveNavStarted?.();
             }
-            try {
-                await locator.click();
-            } finally {
-                if (x !== undefined && y !== undefined) {
-                    this.emitAgentCursor({ kind: 'up', x, y });
-                }
-            }
-            return { clicked: true, ref, x, y };
+        };
+        if (waitForNav) {
+            this.page.on('framenavigated', onFrameNavigated);
         }
 
-        await locator.click({ trial: true });
-
-        const box = await locator.boundingBox();
-        if (!box) throw new Error(`Element [${ref}] is hidden or has no layout box.`);
-        const vp = this.page.viewportSize() ?? { width: 1280, height: 720 };
-        const target = pointInside(visiblePart(box, vp));
-
-        const from = this.lastMouse ?? { x: rand(0, vp.width), y: rand(0, vp.height) };
-        for (const p of humanPath(from, target)) {
-            if (p.dt) await sleep(p.dt);
-            await this.moveMouseIfNeeded(p.x, p.y);
-            this.emitAgentCursor({ kind: 'move', x: p.x, y: p.y });
-        }
-
-        const clickX = Math.round(target.x);
-        const clickY = Math.round(target.y);
-        await sleep(rand(40, 160));
-        this.emitAgentCursor({ kind: 'down', x: clickX, y: clickY });
+        let x: number | undefined;
+        let y: number | undefined;
         try {
-            await this.page.mouse.down();
-            await sleep(rand(50, 130));
-            await this.page.mouse.up();
-        } finally {
-            this.emitAgentCursor({ kind: 'up', x: clickX, y: clickY });
-        }
+            if (!this.humanize) {
+                await locator.scrollIntoViewIfNeeded();
+                const box = await locator.boundingBox();
+                x = box ? Math.round(box.x + box.width / 2) : undefined;
+                y = box ? Math.round(box.y + box.height / 2) : undefined;
+                if (x !== undefined && y !== undefined) {
+                    this.emitAgentCursor({ kind: 'move', x, y });
+                    this.emitAgentCursor({ kind: 'down', x, y });
+                }
+                try {
+                    await locator.click();
+                } finally {
+                    if (x !== undefined && y !== undefined) {
+                        this.emitAgentCursor({ kind: 'up', x, y });
+                    }
+                }
+            } else {
+                await locator.click({ trial: true });
 
-        return { clicked: true, ref, x: target.x, y: target.y };
+                const box = await locator.boundingBox();
+                if (!box) throw new Error(`Element [${ref}] is hidden or has no layout box.`);
+                const vp = this.page.viewportSize() ?? { width: 1280, height: 720 };
+                const target = pointInside(visiblePart(box, vp));
+
+                const from = this.lastMouse ?? { x: rand(0, vp.width), y: rand(0, vp.height) };
+                for (const p of humanPath(from, target)) {
+                    if (p.dt) await sleep(p.dt);
+                    await this.moveMouseIfNeeded(p.x, p.y);
+                    this.emitAgentCursor({ kind: 'move', x: p.x, y: p.y });
+                }
+
+                const clickX = Math.round(target.x);
+                const clickY = Math.round(target.y);
+                await sleep(rand(40, 160));
+                this.emitAgentCursor({ kind: 'down', x: clickX, y: clickY });
+                try {
+                    await this.page.mouse.down();
+                    await sleep(rand(50, 130));
+                    await this.page.mouse.up();
+                } finally {
+                    this.emitAgentCursor({ kind: 'up', x: clickX, y: clickY });
+                }
+                x = target.x;
+                y = target.y;
+            }
+
+            if (!waitForNav || this.page.isClosed()) {
+                return { clicked: true, ref, x, y, navigated: false };
+            }
+
+            if (!frameNavigated && this.page.url() === urlBefore && detectMs > 0) {
+                await Promise.race([navStarted, waitSleep(detectMs)]);
+            }
+
+            const navigated = frameNavigated || (!this.page.isClosed() && this.page.url() !== urlBefore);
+            if (navigated && !this.page.isClosed()) {
+                await this.page.waitForLoadState('domcontentloaded', { timeout: navTimeoutMs }).catch(() => { });
+            }
+
+            return { clicked: true, ref, x, y, navigated };
+        } finally {
+            if (waitForNav) {
+                this.page.off('framenavigated', onFrameNavigated);
+            }
+        }
     }
 
     async fill(ref: string, value: string): Promise<{ filled: boolean; ref: string; value: string }> {
-        await this.click(ref);
+        await this.click(ref, { waitForNavigation: false });
 
         await this.page.keyboard.press('Control+a');
         await this.page.keyboard.press('Backspace');
@@ -145,6 +207,45 @@ export class CamoufoxPageDriver implements PageDriver {
             return { filled: true, ref, value };
         }
         return { filled: true, ref, value };
+    }
+
+    async wait(options: WaitOptions): Promise<WaitResult> {
+        const startedAt = Date.now();
+        const timeout = clampWaitTimeout(options.timeout);
+        const deadline = startedAt + timeout;
+
+        try {
+            if (options.url) {
+                const pattern = options.url;
+                if (!matchUrlPattern(this.page.url(), pattern)) {
+                    await this.page.waitForURL((u) => matchUrlPattern(u.href, pattern), {
+                        timeout: remainingMs(deadline, `url matching "${pattern}"`, timeout),
+                        waitUntil: 'commit',
+                    });
+                }
+            }
+
+            if (options.load) {
+                await this.page.waitForLoadState(options.load, {
+                    timeout: remainingMs(deadline, `load state "${options.load}"`, timeout),
+                });
+            }
+
+            if (options.text) {
+                await this.page.getByText(options.text).first().waitFor({
+                    state: 'visible',
+                    timeout: remainingMs(deadline, `text "${options.text}"`, timeout),
+                });
+            }
+        } catch (err) {
+            if (err instanceof WaitTimeoutError) throw err;
+            if (isTimeoutError(err)) {
+                throw new WaitTimeoutError(`Wait timed out after ${timeout}ms: ${err instanceof Error ? err.message : String(err)}`);
+            }
+            throw err;
+        }
+
+        return { waited: true, elapsedMs: Date.now() - startedAt };
     }
 
     async getScroll(): Promise<{ x: number; y: number; maxX: number; maxY: number }> {

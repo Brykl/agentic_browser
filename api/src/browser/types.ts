@@ -31,8 +31,9 @@ export interface PageDriver {
 
     snapshot(): Promise<string>;
     fullSnapshot(): Promise<string>;
-    click(ref: string): Promise<{ clicked: true; ref: string; x?: number; y?: number }>;
+    click(ref: string, options?: ClickOptions): Promise<ClickResult>;
     fill(ref: string, value: string): Promise<{ filled: boolean; ref: string; value: string }>;
+    wait(options: WaitOptions): Promise<WaitResult>;
     getScroll(): Promise<{ x: number; y: number; maxX: number; maxY: number }>;
     scrollBy(left: number, top: number): Promise<{ x: number; y: number }>;
     startScreencast(): Promise<FrameStream>;
@@ -100,4 +101,32 @@ export interface PageActionMeta {
     navigated: boolean;
     snapshot?: string;
     snapshotMode?: SnapshotMode;
+}
+
+export interface ClickOptions {
+    waitForNavigation?: boolean;
+    navigationDetectMs?: number;
+    navigationTimeoutMs?: number;
+}
+
+export interface ClickResult {
+    clicked: true;
+    ref: string;
+    x?: number;
+    y?: number;
+    navigated?: boolean;
+}
+
+export type PageLoadState = 'domcontentloaded' | 'load' | 'networkidle';
+
+export interface WaitOptions {
+    url?: string;
+    text?: string;
+    load?: PageLoadState;
+    timeout?: number;
+}
+
+export interface WaitResult {
+    waited: true;
+    elapsedMs: number;
 }

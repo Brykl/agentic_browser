@@ -5,12 +5,15 @@ import {
     type BrowserDriver,
     type BrowserEngine,
     type BrowserLaunchConfig,
+    type ClickOptions,
     type FillFieldInput,
     type FillFieldResult,
     type FrameStream,
     type InputEvent,
     type PageActionMeta,
     type PageDriver,
+    type WaitOptions,
+    type WaitResult,
     FillBatchError,
 } from "./types.ts";
 import { computeSnapshotDiff } from "./snapshot-diff.ts";
@@ -194,6 +197,7 @@ export class BrowserManager {
         prevUrl: string,
         opts?: ActionOptions,
         settle = false,
+        driverNavigated = false,
     ): Promise<PageActionMeta> {
         if (settle && opts?.snapshot) {
             await delay(SETTLE_DELAY_MS);
@@ -201,7 +205,7 @@ export class BrowserManager {
 
         const url = page.url();
         const title = await this.safeTitle(page);
-        const navigated = prevUrl !== url;
+        const navigated = driverNavigated || prevUrl !== url;
 
         if (!opts?.snapshot) {
             return { url, title, navigated };
@@ -297,14 +301,38 @@ export class BrowserManager {
         return await page.screenshot();
     }
 
-    async clickButton(browserId: string, pageId: string, ref: string, opts?: ActionOptions) {
+    async clickButton(browserId: string, pageId: string, ref: string, opts?: ActionOptions & ClickOptions) {
         const session = this.browsers.get(browserId);
         const page = session?.pages.get(pageId);
         if (!session || !page) return undefined;
         session.lastUsed = Date.now();
         const prevUrl = page.url();
-        const result = await page.click(ref);
-        const meta = await this.collectActionMeta(session, pageId, page, prevUrl, opts, true);
+        const result = await page.click(ref, opts);
+        const meta = await this.collectActionMeta(
+            session,
+            pageId,
+            page,
+            prevUrl,
+            opts,
+            false,
+            Boolean(result.navigated),
+        );
+        return { ...result, ...meta };
+    }
+
+    async waitPage(
+        browserId: string,
+        pageId: string,
+        waitOpts: WaitOptions,
+        actionOpts?: ActionOptions,
+    ): Promise<(WaitResult & PageActionMeta) | undefined> {
+        const session = this.browsers.get(browserId);
+        const page = session?.pages.get(pageId);
+        if (!session || !page) return undefined;
+        session.lastUsed = Date.now();
+        const prevUrl = page.url();
+        const result = await page.wait(waitOpts);
+        const meta = await this.collectActionMeta(session, pageId, page, prevUrl, actionOpts, false);
         return { ...result, ...meta };
     }
 
