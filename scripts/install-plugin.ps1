@@ -91,4 +91,32 @@ if (Test-Path $nmDst) {
 }
 New-Item -ItemType Junction -Path $nmDst -Target $nmSrc | Out-Null
 
+
+# Add bin directory to User PATH (idempotent)
+$binFullPath = Join-Path $TargetDir "bin"
+$oldPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$entries = if ($oldPath) {
+    @($oldPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+} else {
+    @()
+}
+
+$normalizedBin = $binFullPath.TrimEnd('\')
+$alreadyInPath = $entries | Where-Object { $_.TrimEnd('\') -ieq $normalizedBin }
+
+if (-not $alreadyInPath) {
+    $newPath = ($entries + $binFullPath) -join ';'
+    [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
+}
+
+# Also expose bin in the current PowerShell session if not already present
+$sessionEntries = if ($env:Path) {
+    @($env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+} else {
+    @()
+}
+if (-not ($sessionEntries | Where-Object { $_.TrimEnd('\') -ieq $normalizedBin })) {
+    $env:Path = ($sessionEntries + $binFullPath) -join ';'
+}
+
 Write-Host "Plugin synced to $TargetDir"
